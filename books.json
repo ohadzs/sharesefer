@@ -1,0 +1,444 @@
+{
+  "owner": "אוהד",
+  "books": [
+    {
+      "title": "סודותיו של מורה נבוכים",
+      "author": "מיכה גודמן",
+      "available": true
+    },
+    {
+      "title": "כתבי אפלטון - כרך ראשון",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "יוהנס קפלר : האיש ופעלו",
+      "author": "ארתור קסטלר",
+      "available": true
+    },
+    {
+      "title": "פילוסופיה של הטכנולוגיה",
+      "author": "יוסף אגסי",
+      "available": true
+    },
+    {
+      "title": "אסתטיקה אנליטית",
+      "author": "עדי צמח",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "פילוסופיה של החינוך",
+      "author": "יוסף אגסי ודב רפל",
+      "available": true
+    },
+    {
+      "title": "מכתבים לאחותי",
+      "author": "יוסף אגסי",
+      "available": true
+    },
+    {
+      "title": "בעיות הפילוסופיה",
+      "author": "ברטרנד ראסל",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "אקזיסטנציאליזם הוא הומוניזם",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "דון ג׳ואן (הצגה)",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "הזר",
+      "author": "קאמי",
+      "available": true
+    },
+    {
+      "title": "אדיפוס המלך",
+      "author": "סופוקלס",
+      "available": true
+    },
+    {
+      "title": "המיתולוגיה של הרוע",
+      "author": "שוהם",
+      "available": true
+    },
+    {
+      "title": "אות קיין",
+      "author": "שלמה גיורא שוהם",
+      "available": true
+    },
+    {
+      "title": "פואטיקה",
+      "author": "אריסטו",
+      "available": true
+    },
+    {
+      "title": "תולדות הפילוסופיה החדשה",
+      "author": "יוסף אגסי",
+      "available": true
+    },
+    {
+      "title": "הנאורות החדשה",
+      "author": "יוסף אגסי",
+      "available": true
+    },
+    {
+      "title": "הריפוי של שופנהאואר",
+      "author": "ארווין",
+      "available": true
+    },
+    {
+      "title": "זיכרון ילדות יפה במיוחד",
+      "author": "חיים שפירא",
+      "available": true
+    },
+    {
+      "title": "מחשבות לעת לילה",
+      "author": "חיים שפירא",
+      "available": true
+    },
+    {
+      "title": "כתבים מן המרתף",
+      "author": "דוסטויובסקי",
+      "available": true
+    },
+    {
+      "title": "מגמות בתולדות הספקנות",
+      "author": "עדי פרוש",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "מבחר מסות",
+      "author": "מישל דה מונטיין",
+      "available": true
+    },
+    {
+      "title": "יסוריי ורתר הצעיר",
+      "author": "גתה",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "מאמר על המתודה",
+      "author": "דקארט",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "זמן ותודעה",
+      "author": "אבשלום אליצור",
+      "available": true
+    },
+    {
+      "title": "על העיוורון",
+      "author": "ז׳וזה סארמאמגו",
+      "available": true
+    },
+    {
+      "title": "ערבה עיוורת, עלמה נמה",
+      "author": "מורקמי",
+      "available": true
+    },
+    {
+      "title": "המשפט האחרון של פרמה",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "הגיונות",
+      "author": "רנה דקארט",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "תליין אהבה",
+      "author": "ארווין יאלום",
+      "available": true,
+      "score": "8"
+    },
+    {
+      "title": "21 מחשבות על המאה ה-21",
+      "author": "יובל נוח הררי",
+      "available": true,
+      "score": "9"
+    },
+    {
+      "title": "קורות הציפור המכנית",
+      "author": "הרוקי מורקמי",
+      "available": true,
+      "score": "7"
+    },
+    {
+      "title": "הפיסיקה של המאה ה-20",
+      "author": "יובל נאמן",
+      "available": true
+    },
+    {
+      "title": "עולמה הקסום של השינה",
+      "author": "פרץ לביא",
+      "available": true
+    },
+    {
+      "title": "טירוף, סטייה ויצירה",
+      "author": "שלמה גיורא שוהם",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "תולדות הפילוסופיה - מהרנסאנס ועד קאנט",
+      "author": "בן עמי שרפשטיין",
+      "available": true
+    },
+    {
+      "title": "אהבת נפש",
+      "author": "יהושע בר-יוסף",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "כה אמר זרתוסטרא",
+      "author": "פרידריך ניטשה",
+      "available": true
+    },
+    {
+      "title": "גסטבי הגדול",
+      "author": "פ׳ סקוט פיצג׳רלד",
+      "available": true
+    },
+    {
+      "title": "ראשית הבודהיזם",
+      "author": "שלמה בידרמן",
+      "available": true
+    },
+    {
+      "title": "הדרשה על נפילת רומי",
+      "author": "זרום פרארי",
+      "available": true,
+      "score": "9"
+    },
+    {
+      "title": "אזורי המשגה שלך",
+      "author": "ויין דייר",
+      "available": true
+    },
+    {
+      "title": "הפילוסופים הגדולים - אפלטון",
+      "author": "ברנארד ויליאמס",
+      "available": true
+    },
+    {
+      "title": "קיצור תולדות הזמן",
+      "author": "סטיבן הוקינג",
+      "available": true
+    },
+    {
+      "title": "יער נורווגי",
+      "author": "הרוקי מורקמי",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "כשניטשה בכה",
+      "author": "ארווין יאלום",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "הבשורה על פי ישו",
+      "author": "",
+      "available": true,
+      "score": "9"
+    },
+    {
+      "title": "רודף העפיפונים",
+      "author": "",
+      "available": true,
+      "score": "8"
+    },
+    {
+      "title": "לחשוב מהר לחשוב לאט",
+      "author": "",
+      "available": true,
+      "score": "9"
+    },
+    {
+      "title": "המטרה",
+      "author": "",
+      "available": true,
+      "score": "6.5"
+    },
+    {
+      "title": "קפקא על החוף",
+      "author": "",
+      "available": true,
+      "score": "9"
+    },
+    {
+      "title": "האלכימאי",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "ההיסטוריה של המחר",
+      "author": "",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "חשיבה חדה",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "קיצור תולדות האנושות",
+      "author": "",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "ילד 44",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "כולנו בני חלוף",
+      "author": "ארווין יאלום",
+      "available": true
+    },
+    {
+      "title": "חשוב והתעשר",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "לא רציונלי אבל לא נורא",
+      "author": "",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "שיחות על תורת המשחקים",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "סודו של איש עשיר",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "אינטליגנציה רגשית",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "אתה, המושך בחוטים",
+      "author": "ויין דייר",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "כה אמר וורן באפט",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "ארבע ההסכמות",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "מצוינים",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "לא רציונלי ולא במקרה",
+      "author": "דן אריאלי",
+      "available": true,
+      "score": "10"
+    },
+    {
+      "title": "תורת המשחקים",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "הפסיכולוגיה של ההצלחה",
+      "author": "מאיר לירז",
+      "available": true
+    },
+    {
+      "title": "אומנות ההקשבה לפעימות הלב",
+      "author": "יאן פיליפ סנדקר",
+      "available": true
+    },
+    {
+      "title": "שפת המכירות - שיטת אימפקט למכירות",
+      "author": "דניאל דודזון",
+      "available": true
+    },
+    {
+      "title": "אומנות המלחמה",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "מטרות החינוך",
+      "author": "וייטהד",
+      "available": true
+    },
+    {
+      "title": "כיבוש האושר",
+      "author": "ברטרנד ראסל",
+      "available": true
+    },
+    {
+      "title": "ברטרנד ראסל היקר",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "עולם בדים",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "בימאים ואנשי קולנוע על הקולנוע",
+      "author": "",
+      "available": true
+    },
+    {
+      "title": "ילדי הצל",
+      "author": "בן ציון תומר",
+      "available": true
+    },
+    {
+      "title": "פרחים לעכבר לבן",
+      "author": "דניאל קיז",
+      "available": true
+    },
+    {
+      "title": "קולנוע ופילוסופיה",
+      "author": "הנרי אונגר",
+      "available": true
+    },
+    {
+      "title": "אהבה זה לא סכין",
+      "author": "זאב ברגמן",
+      "available": true
+    },
+    {
+      "title": "הצחוק",
+      "author": "ברגסון",
+      "available": true
+    }
+  ]
+}

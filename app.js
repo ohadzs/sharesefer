@@ -1,0 +1,192 @@
+const CFG = window.BOOKSHARE_CONFIG || {};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+let sb = null;        // supabase client
+let session = null;   // auth session
+let profile = null;   // current user's profile row
+
+// ── boot ──────────────────────────────────────────────────────────────────
+function show(view) {
+  document.querySelectorAll(".view").forEach(v => v.hidden = true);
+  $("view-" + view).hidden = false;
+  document.querySelectorAll(".nav .link[data-view]").forEach(b =>
+    b.classList.toggle("active", b.dataset.view === view));
+}
+
+async function boot() {
+  if (CFG.city) $("tagline").textContent =
+    `ספרייה ביתית ב${CFG.city} — הוסיפו ספרים, מצאו ספרים אצל אחרים, והשאילו בחינם.`;
+
+  if (!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) { show("setup"); return; }
+  sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+
+  const { data } = await sb.auth.getSession();
+  await onSession(data.session);
+  sb.auth.onAuthStateChange((_e, s) => onSession(s));
+  wire();
+}
+
+async function onSession(s) {
+  session = s;
+  if (!session) { $("nav").hidden = true; show("auth"); return; }
+  $("nav").hidden = false;
+  profile = await loadProfile();
+  if (!profile || !profile.name || !profile.whatsapp) { openProfile(); return; }
+  openCatalog();
+}
+
+// ── auth ────────────────────────────────────────────────────────────────────
+function wire() {
+  $("auth-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("auth-email").value.trim();
+    $("auth-msg").textContent = "שולח…";
+    const { error } = await sb.auth.signInWithOtp({
+      email, options: { emailRedirectTo: location.href.split("#")[0] },
+    });
+    $("auth-msg").textContent = error ? "שגיאה: " + error.message
+      : "נשלח קישור כניסה לאימייל. בדקו את התיבה.";
+  });
+  $("signout").addEventListener("click", () => sb.auth.signOut());
+  document.querySelectorAll(".nav .link[data-view]").forEach(b =>
+    b.addEventListener("click", () => {
+      const v = b.dataset.view;
+      if (v === "catalog") openCatalog();
+      else if (v === "add") openAdd();
+      else openProfile();
+    }));
+  $("search").addEventListener("input", filterCatalog);
+  $("add-search").addEventListener("input", searchExisting);
+  $("add-form").addEventListener("submit", addNewBook);
+  $("profile-form").addEventListener("submit", saveProfile);
+  $("b-photo").addEventListener("change", () =>
+    $("file-label").textContent = $("b-photo").files[0]
+      ? "📷 " + $("b-photo").files[0].name : "📷 העלאת תמונת הספר (לא חובה)");
+}
+
+// ── profile ──────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  return data;
+}
+function openProfile() {
+  show("profile");
+  if (profile) { $("p-name").value = profile.name || ""; $("p-whatsapp").value = profile.whatsapp || ""; }
+}
+async function saveProfile(e) {
+  e.preventDefault();
+  const name = $("p-name").value.trim();
+  const whatsapp = $("p-whatsapp").value.replace(/\D/g, "");
+  $("profile-msg").textContent = "שומר…";
+  const { error } = await sb.from("profiles")
+    .upsert({ id: session.user.id, name, whatsapp });
+  if (error) { $("profile-msg").textContent = "שגיאה: " + error.message; return; }
+  profile = { id: session.user.id, name, whatsapp };
+  $("profile-msg").textContent = "נשמר ✓";
+  openCatalog();
+}
+
+// ── catalog ──────────────────────────────────────────────────────────────────
+let allListings = [];
+async function openCatalog() {
+  show("catalog");
+  const { data, error } = await sb.from("listings")
+    .select("id, available, books(title, author, year, photo_url), profiles(name, whatsapp)")
+    .eq("available", true)
+    .order("created_at", { ascending: false });
+  if (error) { $("grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
+  allListings = data || [];
+  renderCatalog(allListings);
+}
+function renderCatalog(list) {
+  $("catalog-empty").hidden = list.length > 0;
+  $("count").textContent = list.length ? `${list.length} ספרים זמינים` : "";
+  $("grid").replaceChildren(...list.map(card));
+}
+function card(l) {
+  const b = l.books || {}, o = l.profiles || {};
+  const wa = (o.whatsapp || "").replace(/\D/g, "");
+  const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = `
+    ${b.photo_url ? `<img class="cover" src="${esc(b.photo_url)}" alt="" loading="lazy">` : ""}
+    <div class="body">
+      <div class="title">${esc(b.title)}</div>
+      ${b.author ? `<div class="author">${esc(b.author)}${b.year ? " · " + esc(b.year) : ""}</div>` : ""}
+      <div class="owner">אצל ${esc(o.name || "משתמש")}</div>
+      <div class="spacer"></div>
+      ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 בקשה בוואטסאפ</a>`
+           : `<span class="borrow disabled">אין מספר ליצירת קשר</span>`}
+    </div>`;
+  return el;
+}
+function filterCatalog() {
+  const q = $("search").value.trim().toLowerCase();
+  if (!q) return renderCatalog(allListings);
+  renderCatalog(allListings.filter(l => {
+    const b = l.books || {};
+    return (b.title || "").toLowerCase().includes(q) || (b.author || "").toLowerCase().includes(q);
+  }));
+}
+
+// ── add book ─────────────────────────────────────────────────────────────────
+function openAdd() {
+  show("add");
+  $("add-search").value = ""; $("add-matches").innerHTML = "";
+  $("add-form").reset(); $("file-label").textContent = "📷 העלאת תמונת הספר (לא חובה)";
+  $("add-msg").textContent = "";
+}
+let searchTimer;
+function searchExisting() {
+  clearTimeout(searchTimer);
+  const q = $("add-search").value.trim();
+  if (q.length < 2) { $("add-matches").innerHTML = ""; return; }
+  searchTimer = setTimeout(async () => {
+    const { data } = await sb.from("books").select("id, title, author, year")
+      .ilike("title", `%${q}%`).limit(8);
+    $("add-matches").innerHTML = "";
+    (data || []).forEach(b => {
+      const row = document.createElement("div");
+      row.className = "match";
+      row.innerHTML = `<span>${esc(b.title)} ${b.author ? `<small>· ${esc(b.author)}</small>` : ""}</span>
+                       <button type="button">זה שלי</button>`;
+      row.querySelector("button").addEventListener("click", () => addListing(b.id));
+      $("add-matches").appendChild(row);
+    });
+  }, 250);
+}
+async function addListing(bookId) {
+  $("add-msg").textContent = "מוסיף…";
+  const { error } = await sb.from("listings").insert({ book_id: bookId, owner: session.user.id });
+  $("add-msg").textContent = error
+    ? (error.code === "23505" ? "כבר הוספת את הספר הזה." : "שגיאה: " + error.message)
+    : "נוסף לספרייה שלך ✓";
+  if (!error) setTimeout(openCatalog, 700);
+}
+async function addNewBook(e) {
+  e.preventDefault();
+  const title = $("b-title").value.trim();
+  if (!title) return;
+  $("add-msg").textContent = "שומר…";
+  let photo_url = null;
+  const file = $("b-photo").files[0];
+  if (file) {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${session.user.id}/${Date.now()}.${ext}`;
+    const up = await sb.storage.from("book-photos").upload(path, file, { upsert: false });
+    if (up.error) { $("add-msg").textContent = "שגיאת העלאה: " + up.error.message; return; }
+    photo_url = sb.storage.from("book-photos").getPublicUrl(path).data.publicUrl;
+  }
+  const ins = await sb.from("books").insert({
+    title, author: $("b-author").value.trim() || null,
+    year: $("b-year").value ? parseInt($("b-year").value, 10) : null,
+    photo_url, created_by: session.user.id,
+  }).select("id").single();
+  if (ins.error) { $("add-msg").textContent = "שגיאה: " + ins.error.message; return; }
+  await addListing(ins.data.id);
+}
+
+boot();

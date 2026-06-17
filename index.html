@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>book-share · השאלת ספרים חינם</title>
+  <meta name="description" content="ספרייה ביתית פתוחה לקהל — הוסיפו ספרים והשאילו, חינם.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📚 book-share</div>
+    <nav id="nav" class="nav" hidden>
+      <button class="link" data-view="catalog">הספרייה</button>
+      <button class="link" data-view="add">+ הוספת ספר</button>
+      <button class="link" data-view="profile" id="nav-profile">הפרופיל שלי</button>
+      <button class="link ghost" id="signout">יציאה</button>
+    </nav>
+  </header>
+
+  <!-- not configured -->
+  <section id="view-setup" class="view" hidden>
+    <div class="card-msg">
+      <h2>כמעט מוכן</h2>
+      <p>צריך לחבר את <code>config.js</code> ל‑Supabase (URL + anon key). ראו <code>SETUP.md</code>.</p>
+    </div>
+  </section>
+
+  <!-- auth / magic link -->
+  <section id="view-auth" class="view" hidden>
+    <div class="hero">
+      <h1>ספרייה פתוחה לכולם</h1>
+      <p class="tagline" id="tagline">הוסיפו ספרים שלכם, מצאו ספרים אצל אחרים — והשאילו בחינם.</p>
+    </div>
+    <form id="auth-form" class="stack">
+      <input type="email" id="auth-email" placeholder="האימייל שלכם" required>
+      <button class="btn" type="submit">שליחת קישור כניסה</button>
+      <p class="hint" id="auth-msg"></p>
+    </form>
+  </section>
+
+  <!-- catalog -->
+  <section id="view-catalog" class="view" hidden>
+    <div class="controls">
+      <input type="search" id="search" placeholder="חיפוש לפי שם ספר או מחבר…" autocomplete="off">
+      <span class="count" id="count"></span>
+    </div>
+    <main id="grid" class="grid" aria-live="polite"></main>
+    <p class="empty" id="catalog-empty" hidden>אין עדיין ספרים. הוסיפו את הראשון!</p>
+  </section>
+
+  <!-- add book -->
+  <section id="view-add" class="view" hidden>
+    <h2>הוספת ספר</h2>
+    <input type="search" id="add-search" placeholder="קודם חפשו אם הספר כבר קיים…" autocomplete="off">
+    <div id="add-matches" class="matches"></div>
+    <div class="divider">לא נמצא? הוסיפו חדש</div>
+    <form id="add-form" class="stack">
+      <input type="text" id="b-title"  placeholder="שם הספר *" required>
+      <input type="text" id="b-author" placeholder="מחבר (לא חובה)">
+      <input type="number" id="b-year"  placeholder="שנה (לא חובה)" min="0" max="2100">
+      <label class="file">
+        <span id="file-label">📷 העלאת תמונת הספר (לא חובה)</span>
+        <input type="file" id="b-photo" accept="image/*">
+      </label>
+      <button class="btn" type="submit">הוספה לספרייה שלי</button>
+      <p class="hint" id="add-msg"></p>
+    </form>
+  </section>
+
+  <!-- profile -->
+  <section id="view-profile" class="view" hidden>
+    <h2>הפרופיל שלי</h2>
+    <form id="profile-form" class="stack">
+      <input type="text" id="p-name" placeholder="השם שלכם" required>
+      <input type="tel" id="p-whatsapp" placeholder="מספר וואטסאפ — לדוגמה 972501234567" required>
+      <p class="hint">המספר משמש כדי שאנשים יוכלו לבקש מכם ספר בוואטסאפ. פורמט בינלאומי, ספרות בלבד.</p>
+      <button class="btn" type="submit">שמירה</button>
+      <p class="hint" id="profile-msg"></p>
+    </form>
+  </section>
+
+  <footer><p>נבנה לשיתוף, לא לרווח 📚</p></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
