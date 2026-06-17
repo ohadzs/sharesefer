@@ -7,6 +7,12 @@ let sb = null;        // supabase client
 let session = null;   // auth session
 let profile = null;   // current user's profile row
 
+const ISRAEL_CITIES = ["תל אביב-יפו","ירושלים","חיפה","ראשון לציון","פתח תקווה","אשדוד","נתניה","באר שבע","בני ברק","חולון","רמת גן","אשקלון","רחובות","בת ים","בית שמש","כפר סבא","הרצליה","חדרה","מודיעין-מכבים-רעות","נצרת","לוד","רמלה","רעננה","גבעתיים","הוד השרון","קריית אתא","נהריה","קריית גת","אילת","ראש העין","עפולה","קריית ביאליק","קריית מוצקין","קריית ים","קריית אונו","נס ציונה","אום אל-פחם","יבנה","אור יהודה","צפת","דימונה","טבריה","טייבה","קריית שמונה","נשר","יקנעם עילית","כרמיאל","מעלות-תרשיחא","שדרות","אופקים","נתיבות","ערד","מגדל העמק","בית שאן","קריית מלאכי","טמרה","סח'נין","באקה אל-גרבייה","טירה","אריאל","מעלה אדומים","ביתר עילית","מודיעין עילית","גבעת שמואל","אזור","יהוד-מונוסון","רמת השרון","גני תקווה","קדימה-צורן","פרדס חנה-כרכור","זכרון יעקב","בנימינה-גבעת עדה","אור עקיבא","טירת כרמל","עכו","שפרעם","נוף הגליל","כפר קאסם","רהט","אלעד","כפר יונה","להבים","עומר","מיתר","כוכב יאיר","שוהם","סביון","ראש פינה","קצרין","ירוחם","מצפה רמון","גן יבנה","באר יעקב","פוריידיס","ג'דיידה-מכר","מגאר","כפר ורדים","עתלית","קיסריה"];
+function populateCities() {
+  const dl = $("cities"); if (!dl || dl.children.length) return;
+  dl.innerHTML = ISRAEL_CITIES.map(c => `<option value="${esc(c)}">`).join("");
+}
+
 // ── boot ──────────────────────────────────────────────────────────────────
 function show(view) {
   document.querySelectorAll(".view").forEach(v => v.hidden = true);
@@ -20,6 +26,7 @@ async function boot() {
   sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   wire();
   setupDonate();
+  populateCities();
 
   // Browsing is public — no login needed. Load the catalog for everyone.
   const { data } = await sb.auth.getSession();
@@ -76,8 +83,9 @@ function wire() {
     b.addEventListener("click", () => {
       const v = b.dataset.view;
       if (v === "catalog") return openCatalog();      // public
-      if (!session) return requireLogin();            // add / profile need login
+      if (!session) return requireLogin();            // add / profile / mybooks need login
       if (v === "add") openAdd();
+      else if (v === "mybooks") openMyBooks();
       else openProfile();
     }));
   $("search").addEventListener("input", applyFilters);
@@ -212,11 +220,31 @@ function card(l) {
   return el;
 }
 
-// ── add book ─────────────────────────────────────────────────────────────────
+// ── add / edit book ──────────────────────────────────────────────────────────
+let editBookId = null;
 function openAdd() {
+  editBookId = null;
   show("add");
+  $("add-title").textContent = "הוספת ספר";
+  $("add-submit").textContent = "הוספה לספרייה שלי";
+  $("add-existing").hidden = false;
   $("add-search").value = ""; $("add-matches").innerHTML = "";
   $("add-form").reset(); $("file-label").textContent = "📷 העלאת תמונת הספר (לא חובה)";
+  $("add-msg").textContent = "";
+}
+function openEditBook(b) {
+  editBookId = b.id;
+  show("add");
+  $("add-title").textContent = "עריכת ספר";
+  $("add-submit").textContent = "שמירת שינויים";
+  $("add-existing").hidden = true;          // editing an existing entry, no search
+  $("add-form").reset();
+  $("b-title").value = b.title || "";
+  $("b-author").value = b.author || "";
+  $("b-publisher").value = b.publisher || "";
+  $("b-year").value = b.year || "";
+  $("b-tags").value = (b.tags || []).join(", ");
+  $("file-label").textContent = "📷 החלפת תמונה (לא חובה)";
   $("add-msg").textContent = "";
 }
 let searchTimer;
@@ -261,15 +289,57 @@ async function addNewBook(e) {
     photo_url = sb.storage.from("book-photos").getPublicUrl(path).data.publicUrl;
   }
   const tags = $("b-tags").value.split(",").map(s => s.trim()).filter(Boolean);
-  const ins = await sb.from("books").insert({
+  const fields = {
     title, author: $("b-author").value.trim() || null,
     year: $("b-year").value ? parseInt($("b-year").value, 10) : null,
     publisher: $("b-publisher").value.trim() || null,
     tags: tags.length ? tags : null,
-    photo_url, created_by: session.user.id,
-  }).select("id").single();
+  };
+  if (editBookId) {                          // editing an existing catalog entry
+    if (photo_url) fields.photo_url = photo_url;
+    const { error } = await sb.from("books").update(fields).eq("id", editBookId);
+    $("add-msg").textContent = error ? "שגיאה: " + error.message : "נשמר ✓";
+    if (!error) setTimeout(openMyBooks, 700);
+    return;
+  }
+  const ins = await sb.from("books").insert({ ...fields, photo_url, created_by: session.user.id })
+    .select("id").single();
   if (ins.error) { $("add-msg").textContent = "שגיאה: " + ins.error.message; return; }
   await addListing(ins.data.id);
+}
+
+// ── my books (the user's own listings) ───────────────────────────────────────
+async function openMyBooks() {
+  show("mybooks");
+  $("mybooks-msg").textContent = "טוען…";
+  const { data, error } = await sb.from("listings")
+    .select("id, available, books(id, title, author, year, publisher, tags, created_by)")
+    .eq("owner", session.user.id)
+    .order("created_at", { ascending: false });
+  if (error) { $("mybooks-msg").textContent = "שגיאה: " + error.message; return; }
+  $("mybooks-msg").textContent = (data && data.length) ? `${data.length} ספרים ברשימה שלך` : "עוד לא הוספת ספרים.";
+  $("mybooks-list").replaceChildren(...(data || []).map(myRow));
+}
+function myRow(l) {
+  const b = l.books || {};
+  const mine = b.created_by === session.user.id;     // only the creator edits the shared entry
+  const row = document.createElement("div");
+  row.className = "myrow";
+  row.innerHTML = `
+    <div class="info"><span class="t">${esc(b.title)}</span>${b.author ? ` <small>· ${esc(b.author)}</small>` : ""}</div>
+    <div class="acts">
+      ${mine ? `<button class="mini edit">✏️ ערוך פרטים</button>` : ""}
+      <button class="mini del">🗑 הסר מהרשימה</button>
+    </div>`;
+  if (mine) row.querySelector(".edit").addEventListener("click", () => openEditBook(b));
+  row.querySelector(".del").addEventListener("click", () => removeListing(l.id, b.title));
+  return row;
+}
+async function removeListing(listingId, title) {
+  if (!confirm(`להסיר את "${title}" מהרשימה שלך?`)) return;
+  const { error } = await sb.from("listings").delete().eq("id", listingId);
+  if (error) { $("mybooks-msg").textContent = "שגיאה: " + error.message; return; }
+  openMyBooks();
 }
 
 boot();

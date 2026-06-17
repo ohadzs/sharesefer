@@ -27,6 +27,7 @@
     <nav id="nav" class="nav">
       <button class="link" data-view="catalog">הספרייה</button>
       <button class="link" data-view="add">+ שיתוף ספר</button>
+      <button class="link auth-only" data-view="mybooks" hidden>הספרים שלי</button>
       <button class="link auth-only" data-view="profile" id="nav-profile" hidden>הפרופיל שלי</button>
       <button class="link ghost auth-only" id="signout" hidden>יציאה</button>
       <button class="link guest-only" id="signin">התחברות</button>
@@ -69,10 +70,12 @@
 
   <!-- add book -->
   <section id="view-add" class="view" hidden>
-    <h2>הוספת ספר</h2>
-    <input type="search" id="add-search" placeholder="קודם חפשו אם הספר כבר קיים…" autocomplete="off">
-    <div id="add-matches" class="matches"></div>
-    <div class="divider">לא נמצא? הוסיפו חדש</div>
+    <h2 id="add-title">הוספת ספר</h2>
+    <div id="add-existing">
+      <input type="search" id="add-search" placeholder="קודם חפשו אם הספר כבר קיים…" autocomplete="off">
+      <div id="add-matches" class="matches"></div>
+      <div class="divider">לא נמצא? הוסיפו חדש</div>
+    </div>
     <form id="add-form" class="stack">
       <input type="text" id="b-title"  placeholder="שם הספר *" required>
       <input type="text" id="b-author" placeholder="מחבר (לא חובה)">
@@ -83,9 +86,16 @@
         <span id="file-label">📷 העלאת תמונת הספר (לא חובה)</span>
         <input type="file" id="b-photo" accept="image/*">
       </label>
-      <button class="btn" type="submit">הוספה לספרייה שלי</button>
+      <button class="btn" type="submit" id="add-submit">הוספה לספרייה שלי</button>
       <p class="hint" id="add-msg"></p>
     </form>
+  </section>
+
+  <!-- my books -->
+  <section id="view-mybooks" class="view" hidden>
+    <h2>הספרים שלי</h2>
+    <p class="hint" id="mybooks-msg"></p>
+    <div id="mybooks-list" class="mybooks"></div>
   </section>
 
   <!-- profile -->
@@ -93,7 +103,8 @@
     <h2>הפרופיל שלי</h2>
     <form id="profile-form" class="stack">
       <input type="text" id="p-name" placeholder="השם שלכם" required>
-      <input type="text" id="p-city" placeholder="העיר שלכם — למשל גבעתיים" required>
+      <input type="text" id="p-city" list="cities" placeholder="בחרו עיר…" required>
+      <datalist id="cities"></datalist>
       <input type="tel" id="p-whatsapp" placeholder="מספר וואטסאפ — לדוגמה 0501234567" required>
       <p class="hint">המספר משמש כדי שאנשים יוכלו לבקש מכם ספר בוואטסאפ. אפשר בפורמט רגיל (0501234567).</p>
       <button class="btn" type="submit">שמירה</button>
