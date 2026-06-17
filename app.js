@@ -16,25 +16,36 @@ function show(view) {
 }
 
 async function boot() {
-  if (CFG.city) $("tagline").textContent =
-    `ספרייה ביתית ב${CFG.city} — הוסיפו ספרים, מצאו ספרים אצל אחרים, והשאילו בחינם.`;
-
   if (!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) { show("setup"); return; }
   sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-
-  const { data } = await sb.auth.getSession();
-  await onSession(data.session);
-  sb.auth.onAuthStateChange((_e, s) => onSession(s));
   wire();
+
+  // Browsing is public — no login needed. Load the catalog for everyone.
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  if (session) profile = await loadProfile();
+  updateNav();
+  openCatalog();
+
+  // React to login/logout (e.g. returning from the magic-link email).
+  sb.auth.onAuthStateChange(async (_e, s) => {
+    session = s;
+    profile = session ? await loadProfile() : null;
+    updateNav();
+    if (session && (!profile || !profile.name || !profile.whatsapp)) openProfile();
+    else openCatalog();
+  });
 }
 
-async function onSession(s) {
-  session = s;
-  if (!session) { $("nav").hidden = true; show("auth"); return; }
-  $("nav").hidden = false;
-  profile = await loadProfile();
-  if (!profile || !profile.name || !profile.whatsapp) { openProfile(); return; }
-  openCatalog();
+function updateNav() {
+  const authed = !!session;
+  document.querySelectorAll(".auth-only").forEach(e => e.hidden = !authed);
+  document.querySelectorAll(".guest-only").forEach(e => e.hidden = authed);
+}
+
+function requireLogin() {
+  $("auth-msg").textContent = "";
+  show("auth");
 }
 
 // ── auth ────────────────────────────────────────────────────────────────────
@@ -50,11 +61,13 @@ function wire() {
       : "נשלח קישור כניסה לאימייל. בדקו את התיבה.";
   });
   $("signout").addEventListener("click", () => sb.auth.signOut());
+  $("signin").addEventListener("click", requireLogin);
   document.querySelectorAll(".nav .link[data-view]").forEach(b =>
     b.addEventListener("click", () => {
       const v = b.dataset.view;
-      if (v === "catalog") openCatalog();
-      else if (v === "add") openAdd();
+      if (v === "catalog") return openCatalog();      // public
+      if (!session) return requireLogin();            // add / profile need login
+      if (v === "add") openAdd();
       else openProfile();
     }));
   $("search").addEventListener("input", filterCatalog);
