@@ -1,7 +1,6 @@
-// ── Fill these in after creating your free Supabase project ───────────────
-//    Supabase dashboard → Project Settings → API
+// ── Supabase connection (publishable key — safe to ship; protected by RLS) ──
 window.BOOKSHARE_CONFIG = {
-  SUPABASE_URL: "",       // e.g. https://abcdxyz.supabase.co
-  SUPABASE_ANON_KEY: "",  // the public "anon" key (safe to ship)
+  SUPABASE_URL: "https://dwivtcqhruwgembqhecc.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_5wSqU34uorP83TT8KTeLDQ_e9QpvHO4",
   city: "גבעתיים",        // shown in the intro; clear ("") to hide
 };
