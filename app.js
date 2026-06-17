@@ -33,7 +33,7 @@ async function boot() {
     session = s;
     profile = session ? await loadProfile() : null;
     updateNav();
-    if (session && (!profile || !profile.name || !profile.whatsapp)) openProfile();
+    if (session && (!profile || !profile.name || !profile.whatsapp || !profile.city)) openProfile();
     else openCatalog();
   });
 }

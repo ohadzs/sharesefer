@@ -6,6 +6,6 @@ window.BOOKSHARE_CONFIG = {
   GOOGLE_BOOKS_KEY: "",   // optional free key → auto book covers (incl. Hebrew). Empty = covers from uploads / Open Library only
   donate: {
     url: "",              // Bit payment-request link — set this to show the donate button
-    label: "📚 תמכו בספרייה",
+    label: "🐛 האכילו את תולעת הספרים",
   },
 };
