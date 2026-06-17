@@ -19,6 +19,7 @@ create table if not exists books (
   title      text not null,
   author     text,
   year       int,
+  publisher  text,
   photo_url  text,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz default now()

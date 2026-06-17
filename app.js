@@ -116,7 +116,7 @@ let allListings = [];
 async function openCatalog() {
   show("catalog");
   const { data, error } = await sb.from("listings")
-    .select("id, available, books(title, author, year, photo_url), profiles(name, whatsapp)")
+    .select("id, available, books(title, author, year, publisher, photo_url), profiles(name, whatsapp)")
     .eq("available", true)
     .order("created_at", { ascending: false });
   if (error) { $("grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
@@ -136,22 +136,37 @@ function waNumber(raw) {
   if (d.startsWith("0")) return "972" + d.slice(1);
   return d;
 }
+// Auto book cover from Open Library (best-effort; many Hebrew titles won't match)
+const coverCache = {};
+async function fetchCover(title) {
+  if (title in coverCache) return coverCache[title];
+  try {
+    const r = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&limit=1&fields=cover_i`);
+    const d = await r.json();
+    const id = d.docs && d.docs[0] && d.docs[0].cover_i;
+    return coverCache[title] = id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null;
+  } catch (e) { return coverCache[title] = null; }
+}
 function card(l) {
   const b = l.books || {}, o = l.profiles || {};
   const wa = waNumber(o.whatsapp);
+  const name = o.name || "המשתף";
   const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
+  const meta = [b.author, b.year, b.publisher].filter(Boolean).map(esc).join(" · ");
   const el = document.createElement("article");
   el.className = "card";
   el.innerHTML = `
-    ${b.photo_url ? `<img class="cover" src="${esc(b.photo_url)}" alt="" loading="lazy">` : ""}
+    <div class="cover" data-cover>${b.photo_url ? `<img src="${esc(b.photo_url)}" alt="" loading="lazy">` : `<span class="ph">📚</span>`}</div>
     <div class="body">
       <div class="title">${esc(b.title)}</div>
-      ${b.author ? `<div class="author">${esc(b.author)}${b.year ? " · " + esc(b.year) : ""}</div>` : ""}
-      <div class="owner">אצל ${esc(o.name || "משתמש")}</div>
+      ${meta ? `<div class="author">${meta}</div>` : ""}
       <div class="spacer"></div>
-      ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 בקשה בוואטסאפ</a>`
+      ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 צור קשר עם ${esc(name)}</a>`
            : `<span class="borrow disabled">אין מספר ליצירת קשר</span>`}
     </div>`;
+  if (!b.photo_url) fetchCover(b.title).then(url => {
+    if (url) el.querySelector("[data-cover]").innerHTML = `<img src="${url}" alt="" loading="lazy">`;
+  });
   return el;
 }
 function filterCatalog() {
@@ -214,6 +229,7 @@ async function addNewBook(e) {
   const ins = await sb.from("books").insert({
     title, author: $("b-author").value.trim() || null,
     year: $("b-year").value ? parseInt($("b-year").value, 10) : null,
+    publisher: $("b-publisher").value.trim() || null,
     photo_url, created_by: session.user.id,
   }).select("id").single();
   if (ins.error) { $("add-msg").textContent = "שגיאה: " + ins.error.message; return; }
