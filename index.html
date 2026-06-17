@@ -58,15 +58,20 @@
 
   <!-- catalog -->
   <section id="view-catalog" class="view" hidden>
-    <p class="intro">📚 <b>ShareSefer</b> — ספרייה קהילתית חינמית. אנשים משתפים ספרים מהבית להשאלה: מצאו ספר, פנו בוואטסאפ, והשאילו. בחינם.</p>
+    <p class="intro">📚 <b>ShareSefer</b> — יש לנו ספרים טובים, וחבל שיישבו על המדף. במקום זה אנחנו משתפים אותם עם אחרים: מצאו ספר קרוב אליכם, צרו קשר עם מי שמשתף אותו, והשאילו. בחינם.</p>
     <div class="controls">
       <input type="search" id="search" placeholder="חיפוש לפי שם ספר או מחבר…" autocomplete="off">
       <span class="count" id="count"></span>
     </div>
     <div class="filters" id="filters"></div>
+    <button class="chip adv-toggle" id="adv-toggle">⚙️ סינון מתקדם</button>
+    <div class="filters" id="adv-filters" hidden></div>
     <main id="grid" class="grid" aria-live="polite"></main>
     <p class="empty" id="catalog-empty" hidden>אין עדיין ספרים. הוסיפו את הראשון!</p>
   </section>
+
+  <!-- single book page (rendered by JS) -->
+  <section id="view-book" class="view" hidden></section>
 
   <!-- add book -->
   <section id="view-add" class="view" hidden>

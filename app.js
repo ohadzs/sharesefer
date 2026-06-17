@@ -45,7 +45,8 @@ async function boot() {
   session = data.session;
   if (session) profile = await loadProfile();
   updateNav();
-  openCatalog();
+  const bookParam = new URLSearchParams(location.search).get("book");
+  if (bookParam) openBook(bookParam); else openCatalog();
 
   // React to login/logout (e.g. returning from the magic-link email).
   sb.auth.onAuthStateChange(async (_e, s) => {
@@ -101,6 +102,10 @@ function wire() {
       else openProfile();
     }));
   $("search").addEventListener("input", applyFilters);
+  $("adv-toggle").addEventListener("click", () => {
+    const a = $("adv-filters"); a.hidden = !a.hidden;
+    $("adv-toggle").classList.toggle("on", !a.hidden);
+  });
   $("add-search").addEventListener("input", searchExisting);
   $("add-form").addEventListener("submit", addNewBook);
   $("profile-form").addEventListener("submit", saveProfile);
@@ -132,33 +137,41 @@ async function saveProfile(e) {
   openCatalog();
 }
 
-// ── catalog ──────────────────────────────────────────────────────────────────
-let allListings = [];
+// ── catalog (grouped by book — a book can have several owners) ───────────────
+let allBooks = [];   // [{ book, owners:[{name,whatsapp,city}] }]
 async function openCatalog() {
   show("catalog");
+  history.replaceState(null, "", location.pathname);   // drop ?book
   const { data, error } = await sb.from("listings")
-    .select("id, available, books(title, author, year, publisher, language, photo_url, tags), profiles(name, whatsapp, city)")
+    .select("id, available, books(id, title, author, year, publisher, language, photo_url, tags), profiles(name, whatsapp, city)")
     .eq("available", true)
     .order("created_at", { ascending: false });
   if (error) { $("grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
-  allListings = data || [];
+  const byBook = new Map();
+  (data || []).forEach(l => {
+    const b = l.books; if (!b) return;
+    if (!byBook.has(b.id)) byBook.set(b.id, { book: b, owners: [] });
+    byBook.get(b.id).owners.push(l.profiles || {});
+  });
+  allBooks = [...byBook.values()];
   buildFilters();
   applyFilters();
 }
+const bookCities = (e) => [...new Set(e.owners.map(o => o.city).filter(Boolean))];
 function renderCatalog(list) {
   $("catalog-empty").hidden = list.length > 0;
-  $("count").textContent = list.length ? `${list.length} ספרים זמינים` : "";
+  $("count").textContent = list.length ? `${list.length} ספרים` : "";
   $("grid").replaceChildren(...list.map(card));
 }
 
-// ── filters: city + tags + "near me" ─────────────────────────────────────────
-let fCity = "", fTags = new Set();
+// ── filters: quick (city · near · genres) + advanced (language · owner) ──────
+let fCity = "", fTags = new Set(), fLang = "", fOwner = "";
 function buildFilters() {
-  const cities = [...new Set(allListings.map(l => l.profiles && l.profiles.city).filter(Boolean))].sort();
-  const tags = [...new Set(allListings.flatMap(l => (l.books && l.books.tags) || []))].sort();
+  const cs = [...new Set(allBooks.flatMap(bookCities))].sort();
+  const tags = [...new Set(allBooks.flatMap(e => e.book.tags || []))].sort();
   let html = "";
-  if (cities.length) html += `<select id="f-city"><option value="">כל הערים</option>` +
-    cities.map(c => `<option ${c === fCity ? "selected" : ""}>${esc(c)}</option>`).join("") + `</select>`;
+  if (cs.length) html += `<select id="f-city"><option value="">כל הערים</option>` +
+    cs.map(c => `<option ${c === fCity ? "selected" : ""}>${esc(c)}</option>`).join("") + `</select>`;
   if (profile && profile.city) html += `<button class="chip near" id="f-near">📍 קרוב אליי</button>`;
   if (tags.length) html += `<div class="tagfilter">` +
     tags.map(t => `<button class="chip tag ${fTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)}</button>`).join("") + `</div>`;
@@ -168,13 +181,29 @@ function buildFilters() {
   $("filters").querySelectorAll(".chip.tag").forEach(b => b.addEventListener("click", () => {
     const t = b.dataset.tag; fTags.has(t) ? fTags.delete(t) : fTags.add(t); b.classList.toggle("on"); applyFilters();
   }));
+  buildAdvFilters();
+}
+function buildAdvFilters() {
+  const langs = [...new Set(allBooks.map(e => e.book.language).filter(Boolean))].sort();
+  const owners = [...new Set(allBooks.flatMap(e => e.owners.map(o => o.name).filter(Boolean)))].sort();
+  let html = `<label class="fl">שפה <select id="f-lang"><option value="">הכל</option>` +
+    langs.map(l => `<option ${l === fLang ? "selected" : ""}>${esc(l)}</option>`).join("") + `</select></label>`;
+  html += `<label class="fl">משתף <select id="f-owner"><option value="">כולם</option>` +
+    owners.map(o => `<option ${o === fOwner ? "selected" : ""}>${esc(o)}</option>`).join("") + `</select></label>`;
+  html += `<button class="chip" id="f-clear">נקה הכל</button>`;
+  $("adv-filters").innerHTML = html;
+  $("f-lang").addEventListener("change", e => { fLang = e.target.value; applyFilters(); });
+  $("f-owner").addEventListener("change", e => { fOwner = e.target.value; applyFilters(); });
+  $("f-clear").addEventListener("click", () => { fCity = fLang = fOwner = ""; fTags.clear(); $("search").value = ""; buildFilters(); applyFilters(); });
 }
 function applyFilters() {
   const q = $("search").value.trim().toLowerCase();
-  let list = allListings;
-  if (q) list = list.filter(l => { const b = l.books || {}; return (b.title || "").toLowerCase().includes(q) || (b.author || "").toLowerCase().includes(q); });
-  if (fCity) list = list.filter(l => (l.profiles && l.profiles.city) === fCity);
-  if (fTags.size) list = list.filter(l => { const t = (l.books && l.books.tags) || []; return [...fTags].every(x => t.includes(x)); });
+  let list = allBooks;
+  if (q) list = list.filter(e => (e.book.title || "").toLowerCase().includes(q) || (e.book.author || "").toLowerCase().includes(q));
+  if (fCity) list = list.filter(e => bookCities(e).includes(fCity));
+  if (fLang) list = list.filter(e => e.book.language === fLang);
+  if (fOwner) list = list.filter(e => e.owners.some(o => o.name === fOwner));
+  if (fTags.size) list = list.filter(e => { const t = e.book.tags || []; return [...fTags].every(x => t.includes(x)); });
   renderCatalog(list);
 }
 // Normalize an Israeli number for wa.me: 050-1234567 → 972501234567
@@ -206,30 +235,72 @@ async function fetchCover(title, author) {
   } catch (e) {}
   return coverCache[key] = null;
 }
-function card(l) {
-  const b = l.books || {}, o = l.profiles || {};
-  const wa = waNumber(o.whatsapp);
-  const name = o.name || "המשתף";
-  const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
+// Card: one per book, links to its page. Contact lives on the book page only.
+function card(entry) {
+  const b = entry.book;
   const meta = [b.author, b.year, b.publisher, (b.language && b.language !== "עברית") ? b.language : null].filter(Boolean).map(esc).join(" · ");
   const tags = (b.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join("");
+  const cs = bookCities(entry);
+  const csTxt = cs.length ? "📍 " + cs.slice(0, 3).map(esc).join(" · ") + (cs.length > 3 ? ` +${cs.length - 3}` : "") : "";
+  const n = entry.owners.length;
   const el = document.createElement("article");
-  el.className = "card";
+  el.className = "card clickable";
   el.innerHTML = `
     <div class="cover" data-cover>${b.photo_url ? `<img src="${esc(b.photo_url)}" alt="" loading="lazy">` : `<span class="ph">📚</span>`}</div>
     <div class="body">
       <div class="title">${esc(b.title)}</div>
       ${meta ? `<div class="author">${meta}</div>` : ""}
-      ${o.city ? `<div class="loc">📍 ${esc(o.city)}</div>` : ""}
+      ${csTxt ? `<div class="loc">${csTxt}</div>` : ""}
       ${tags ? `<div class="tags">${tags}</div>` : ""}
       <div class="spacer"></div>
-      ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 צור קשר עם ${esc(name)}</a>`
-           : `<span class="borrow disabled">אין מספר ליצירת קשר</span>`}
+      <span class="borrow details">לפרטים · ${n} ${n === 1 ? "משתף" : "משתפים"} ←</span>
     </div>`;
+  el.addEventListener("click", () => openBook(b.id));
   if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
     if (url) el.querySelector("[data-cover]").innerHTML = `<img src="${url}" alt="" loading="lazy">`;
   });
   return el;
+}
+
+// ── single book page: details + everyone who lends it + contact ──────────────
+async function openBook(id) {
+  show("book");
+  history.replaceState(null, "", `?book=${id}`);
+  $("view-book").innerHTML = `<p class="hint">טוען…</p>`;
+  const { data, error } = await sb.from("listings")
+    .select("id, profiles(name, whatsapp, city), books(id, title, author, year, publisher, language, photo_url, tags)")
+    .eq("book_id", id).eq("available", true);
+  if (error || !data || !data.length) {
+    $("view-book").innerHTML = `<button class="chip" onclick="openCatalog()">← לספרייה</button><p class="empty">הספר לא נמצא.</p>`;
+    return;
+  }
+  const b = data[0].books;
+  const meta = [b.author, b.year, b.publisher, b.language].filter(Boolean).map(esc).join(" · ");
+  const tags = (b.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join("");
+  const lenders = data.map(l => {
+    const o = l.profiles || {}, wa = waNumber(o.whatsapp);
+    const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
+    return `<div class="lender">
+      <span><b>${esc(o.name || "משתף")}</b>${o.city ? ` · 📍 ${esc(o.city)}` : ""}</span>
+      ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 בקשה בוואטסאפ</a>` : `<span class="borrow disabled">אין יצירת קשר</span>`}
+    </div>`;
+  }).join("");
+  $("view-book").innerHTML = `
+    <button class="chip back" onclick="openCatalog()">← לספרייה</button>
+    <div class="bookpage">
+      <div class="bp-cover" data-cover>${b.photo_url ? `<img src="${esc(b.photo_url)}" alt="">` : `<span class="ph">📚</span>`}</div>
+      <div class="bp-info">
+        <h2>${esc(b.title)}</h2>
+        ${meta ? `<p class="author">${meta}</p>` : ""}
+        ${tags ? `<div class="tags">${tags}</div>` : ""}
+        <h3>אצל ${data.length} ${data.length === 1 ? "אדם" : "אנשים"}</h3>
+        <div class="lenders">${lenders}</div>
+        <p class="hint safety">⚠️ היזהרו במסירת פרטים אישיים. מומלץ להיפגש במקום ציבורי. ShareSefer אינו צד לעסקה.</p>
+      </div>
+    </div>`;
+  if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
+    const c = $("view-book").querySelector("[data-cover]"); if (url && c) c.innerHTML = `<img src="${url}" alt="">`;
+  });
 }
 
 // ── add / edit book ──────────────────────────────────────────────────────────
@@ -337,16 +408,15 @@ async function openMyBooks() {
 }
 function myRow(l) {
   const b = l.books || {};
-  const mine = b.created_by === session.user.id;     // only the creator edits the shared entry
   const row = document.createElement("div");
   row.className = "myrow";
   row.innerHTML = `
     <div class="info"><span class="t">${esc(b.title)}</span>${b.author ? ` <small>· ${esc(b.author)}</small>` : ""}</div>
     <div class="acts">
-      ${mine ? `<button class="mini edit">✏️ ערוך פרטים</button>` : ""}
+      <button class="mini view">↗ עמוד הספר</button>
       <button class="mini del">🗑 הסר מהרשימה</button>
     </div>`;
-  if (mine) row.querySelector(".edit").addEventListener("click", () => openEditBook(b));
+  row.querySelector(".view").addEventListener("click", () => openBook(b.id));
   row.querySelector(".del").addEventListener("click", () => removeListing(l.id, b.title));
   return row;
 }
