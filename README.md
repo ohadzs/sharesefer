@@ -1,4 +1,4 @@
-# book-share
+# ShareSefer
 
 A free, community book-lending site. Users sign in by email, list books they own
 (from a shared catalog or a new entry with an optional photo), and others request
@@ -28,5 +28,5 @@ Adding a book searches the shared catalog first; only genuinely new titles creat
 new `books` row, so the same book isn't duplicated when several people own it.
 
 ## Preview locally
-`cd book-share && python3 -m http.server 8000` → http://localhost:8000
+`cd sharesefer && python3 -m http.server 8000` → http://localhost:8000
 (needs `config.js` filled in first — otherwise it shows a "connect Supabase" message).

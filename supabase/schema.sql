@@ -1,4 +1,4 @@
--- book-share database schema (run once in Supabase → SQL Editor)
+-- ShareSefer database schema (run once in Supabase → SQL Editor)
 -- Tables: profiles · books (shared catalog) · listings (a user's copy of a book)
 
 -- ── profiles ────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# book-share — setup (one-time, ~10 min)
+# ShareSefer — setup (one-time, ~10 min)
 
 A community book-lending site: users sign in by email, add books they own
 (picking from the shared catalog or creating a new one with an optional photo),
@@ -16,12 +16,12 @@ and others tap **בקשה בוואטסאפ** to borrow. Static frontend + Supaba
 
 ## 3. Allow your site URL for magic-link login
 **Authentication → URL Configuration**:
-- **Site URL**: your deployed URL (e.g. `https://book-share.pages.dev`). For local testing add `http://localhost:8000`.
+- **Site URL**: your deployed URL (e.g. `https://ShareSefer.pages.dev`). For local testing add `http://localhost:8000`.
 - **Redirect URLs**: add both the deployed URL and `http://localhost:8000/`.
 
 ## 4. Test locally
 ```
-cd book-share && python3 -m http.server 8000
+cd sharesefer && python3 -m http.server 8000
 ```
 Open http://localhost:8000 → enter your email → click the link in the email →
 fill name + WhatsApp → you're in.
