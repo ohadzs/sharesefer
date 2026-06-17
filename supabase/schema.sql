@@ -21,6 +21,7 @@ create table if not exists books (
   author     text,
   year       int,
   publisher  text,
+  language   text default 'עברית',
   tags       text[],
   photo_url  text,
   created_by uuid references auth.users(id) on delete set null,

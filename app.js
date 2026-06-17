@@ -13,6 +13,18 @@ function populateCities() {
   dl.innerHTML = ISRAEL_CITIES.map(c => `<option value="${esc(c)}">`).join("");
 }
 
+// Fixed genre vocabulary (users pick from this — they can't invent labels)
+const GENRES = ["ספרות","שירה","מחזה","סיפורים קצרים","מדע בדיוני","פנטזיה","מתח ובלש","פילוסופיה","פסיכולוגיה","מדע","מתמטיקה","פיזיקה","היסטוריה","ביוגרפיה","יהדות","דת ורוחניות","כלכלה","עסקים","התפתחות אישית","פוליטיקה","חברה","אמנות","קולנוע","מוזיקה","ילדים ונוער","בריאות ותזונה","בישול","טבע ומסעות","חינוך","אסטרטגיה","עיון"];
+function renderGenres(selected) {
+  const sel = new Set(selected || []);
+  $("b-genres").innerHTML = GENRES.map(g =>
+    `<button type="button" class="chip gpick ${sel.has(g) ? "on" : ""}" data-g="${esc(g)}">${esc(g)}</button>`).join("");
+  $("b-genres").querySelectorAll(".gpick").forEach(b => b.addEventListener("click", () => b.classList.toggle("on")));
+}
+function selectedGenres() {
+  return [...$("b-genres").querySelectorAll(".gpick.on")].map(b => b.dataset.g);
+}
+
 // ── boot ──────────────────────────────────────────────────────────────────
 function show(view) {
   document.querySelectorAll(".view").forEach(v => v.hidden = true);
@@ -94,7 +106,7 @@ function wire() {
   $("profile-form").addEventListener("submit", saveProfile);
   $("b-photo").addEventListener("change", () =>
     $("file-label").textContent = $("b-photo").files[0]
-      ? "📷 " + $("b-photo").files[0].name : "📷 העלאת תמונת הספר (לא חובה)");
+      ? "📷 " + $("b-photo").files[0].name : "📷 תמונת הספר");
 }
 
 // ── profile ──────────────────────────────────────────────────────────────────
@@ -125,7 +137,7 @@ let allListings = [];
 async function openCatalog() {
   show("catalog");
   const { data, error } = await sb.from("listings")
-    .select("id, available, books(title, author, year, publisher, photo_url, tags), profiles(name, whatsapp, city)")
+    .select("id, available, books(title, author, year, publisher, language, photo_url, tags), profiles(name, whatsapp, city)")
     .eq("available", true)
     .order("created_at", { ascending: false });
   if (error) { $("grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
@@ -199,7 +211,7 @@ function card(l) {
   const wa = waNumber(o.whatsapp);
   const name = o.name || "המשתף";
   const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
-  const meta = [b.author, b.year, b.publisher].filter(Boolean).map(esc).join(" · ");
+  const meta = [b.author, b.year, b.publisher, (b.language && b.language !== "עברית") ? b.language : null].filter(Boolean).map(esc).join(" · ");
   const tags = (b.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join("");
   const el = document.createElement("article");
   el.className = "card";
@@ -229,7 +241,8 @@ function openAdd() {
   $("add-submit").textContent = "הוספה לספרייה שלי";
   $("add-existing").hidden = false;
   $("add-search").value = ""; $("add-matches").innerHTML = "";
-  $("add-form").reset(); $("file-label").textContent = "📷 העלאת תמונת הספר (לא חובה)";
+  $("add-form").reset(); $("file-label").textContent = "📷 תמונת הספר";
+  $("b-lang").value = "עברית"; renderGenres([]);
   $("add-msg").textContent = "";
 }
 function openEditBook(b) {
@@ -243,8 +256,9 @@ function openEditBook(b) {
   $("b-author").value = b.author || "";
   $("b-publisher").value = b.publisher || "";
   $("b-year").value = b.year || "";
-  $("b-tags").value = (b.tags || []).join(", ");
-  $("file-label").textContent = "📷 החלפת תמונה (לא חובה)";
+  $("b-lang").value = b.language || "עברית";
+  renderGenres(b.tags || []);
+  $("file-label").textContent = "📷 החלפת תמונה";
   $("add-msg").textContent = "";
 }
 let searchTimer;
@@ -288,11 +302,12 @@ async function addNewBook(e) {
     if (up.error) { $("add-msg").textContent = "שגיאת העלאה: " + up.error.message; return; }
     photo_url = sb.storage.from("book-photos").getPublicUrl(path).data.publicUrl;
   }
-  const tags = $("b-tags").value.split(",").map(s => s.trim()).filter(Boolean);
+  const tags = selectedGenres();
   const fields = {
     title, author: $("b-author").value.trim() || null,
     year: $("b-year").value ? parseInt($("b-year").value, 10) : null,
     publisher: $("b-publisher").value.trim() || null,
+    language: $("b-lang").value || "עברית",
     tags: tags.length ? tags : null,
   };
   if (editBookId) {                          // editing an existing catalog entry
@@ -313,7 +328,7 @@ async function openMyBooks() {
   show("mybooks");
   $("mybooks-msg").textContent = "טוען…";
   const { data, error } = await sb.from("listings")
-    .select("id, available, books(id, title, author, year, publisher, tags, created_by)")
+    .select("id, available, books(id, title, author, year, publisher, language, tags, created_by)")
     .eq("owner", session.user.id)
     .order("created_at", { ascending: false });
   if (error) { $("mybooks-msg").textContent = "שגיאה: " + error.message; return; }
