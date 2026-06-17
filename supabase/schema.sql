@@ -51,3 +51,10 @@ create policy "book photos public read" on storage.objects
   for select using (bucket_id = 'book-photos');
 create policy "authed upload book photos" on storage.objects
   for insert with check (bucket_id = 'book-photos' and auth.uid() is not null);
+
+-- ── grants: expose tables to the Data API roles (RLS still restricts rows) ──
+grant usage on schema public to anon, authenticated;
+grant select on public.books, public.listings, public.profiles to anon, authenticated;
+grant insert, update on public.books to authenticated;
+grant insert, update, delete on public.listings to authenticated;
+grant insert, update on public.profiles to authenticated;
