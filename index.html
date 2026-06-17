@@ -57,10 +57,12 @@
 
   <!-- catalog -->
   <section id="view-catalog" class="view" hidden>
+    <p class="intro">📚 <b>ShareSefer</b> — ספרייה קהילתית חינמית. אנשים משתפים ספרים מהבית להשאלה: מצאו ספר, פנו בוואטסאפ, והשאילו. בחינם.</p>
     <div class="controls">
       <input type="search" id="search" placeholder="חיפוש לפי שם ספר או מחבר…" autocomplete="off">
       <span class="count" id="count"></span>
     </div>
+    <div class="filters" id="filters"></div>
     <main id="grid" class="grid" aria-live="polite"></main>
     <p class="empty" id="catalog-empty" hidden>אין עדיין ספרים. הוסיפו את הראשון!</p>
   </section>
@@ -76,6 +78,7 @@
       <input type="text" id="b-author" placeholder="מחבר (לא חובה)">
       <input type="text" id="b-publisher" placeholder="הוצאה (לא חובה)">
       <input type="number" id="b-year"  placeholder="שנה (לא חובה)" min="0" max="2100">
+      <input type="text" id="b-tags" placeholder="תגיות, מופרדות בפסיק — פילוסופיה, רומן… (לא חובה)">
       <label class="file">
         <span id="file-label">📷 העלאת תמונת הספר (לא חובה)</span>
         <input type="file" id="b-photo" accept="image/*">
@@ -90,6 +93,7 @@
     <h2>הפרופיל שלי</h2>
     <form id="profile-form" class="stack">
       <input type="text" id="p-name" placeholder="השם שלכם" required>
+      <input type="text" id="p-city" placeholder="העיר שלכם — למשל גבעתיים (לא חובה)">
       <input type="tel" id="p-whatsapp" placeholder="מספר וואטסאפ — לדוגמה 0501234567" required>
       <p class="hint">המספר משמש כדי שאנשים יוכלו לבקש מכם ספר בוואטסאפ. אפשר בפורמט רגיל (0501234567).</p>
       <button class="btn" type="submit">שמירה</button>

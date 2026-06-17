@@ -5,6 +5,7 @@
 create table if not exists profiles (
   id         uuid primary key references auth.users(id) on delete cascade,
   name       text,
+  city       text,
   whatsapp   text,                       -- intl format, digits only: 972501234567
   created_at timestamptz default now()
 );
@@ -20,6 +21,7 @@ create table if not exists books (
   author     text,
   year       int,
   publisher  text,
+  tags       text[],
   photo_url  text,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz default now()

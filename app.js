@@ -80,7 +80,7 @@ function wire() {
       if (v === "add") openAdd();
       else openProfile();
     }));
-  $("search").addEventListener("input", filterCatalog);
+  $("search").addEventListener("input", applyFilters);
   $("add-search").addEventListener("input", searchExisting);
   $("add-form").addEventListener("submit", addNewBook);
   $("profile-form").addEventListener("submit", saveProfile);
@@ -96,17 +96,18 @@ async function loadProfile() {
 }
 function openProfile() {
   show("profile");
-  if (profile) { $("p-name").value = profile.name || ""; $("p-whatsapp").value = profile.whatsapp || ""; }
+  if (profile) { $("p-name").value = profile.name || ""; $("p-city").value = profile.city || ""; $("p-whatsapp").value = profile.whatsapp || ""; }
 }
 async function saveProfile(e) {
   e.preventDefault();
   const name = $("p-name").value.trim();
+  const city = $("p-city").value.trim() || null;
   const whatsapp = $("p-whatsapp").value.replace(/\D/g, "");
   $("profile-msg").textContent = "שומר…";
   const { error } = await sb.from("profiles")
-    .upsert({ id: session.user.id, name, whatsapp });
+    .upsert({ id: session.user.id, name, city, whatsapp });
   if (error) { $("profile-msg").textContent = "שגיאה: " + error.message; return; }
-  profile = { id: session.user.id, name, whatsapp };
+  profile = { id: session.user.id, name, city, whatsapp };
   $("profile-msg").textContent = "נשמר ✓";
   openCatalog();
 }
@@ -116,17 +117,45 @@ let allListings = [];
 async function openCatalog() {
   show("catalog");
   const { data, error } = await sb.from("listings")
-    .select("id, available, books(title, author, year, publisher, photo_url), profiles(name, whatsapp)")
+    .select("id, available, books(title, author, year, publisher, photo_url, tags), profiles(name, whatsapp, city)")
     .eq("available", true)
     .order("created_at", { ascending: false });
   if (error) { $("grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
   allListings = data || [];
-  renderCatalog(allListings);
+  buildFilters();
+  applyFilters();
 }
 function renderCatalog(list) {
   $("catalog-empty").hidden = list.length > 0;
   $("count").textContent = list.length ? `${list.length} ספרים זמינים` : "";
   $("grid").replaceChildren(...list.map(card));
+}
+
+// ── filters: city + tags + "near me" ─────────────────────────────────────────
+let fCity = "", fTags = new Set();
+function buildFilters() {
+  const cities = [...new Set(allListings.map(l => l.profiles && l.profiles.city).filter(Boolean))].sort();
+  const tags = [...new Set(allListings.flatMap(l => (l.books && l.books.tags) || []))].sort();
+  let html = "";
+  if (cities.length) html += `<select id="f-city"><option value="">כל הערים</option>` +
+    cities.map(c => `<option ${c === fCity ? "selected" : ""}>${esc(c)}</option>`).join("") + `</select>`;
+  if (profile && profile.city) html += `<button class="chip near" id="f-near">📍 קרוב אליי</button>`;
+  if (tags.length) html += `<div class="tagfilter">` +
+    tags.map(t => `<button class="chip tag ${fTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)}</button>`).join("") + `</div>`;
+  $("filters").innerHTML = html;
+  if ($("f-city")) $("f-city").addEventListener("change", e => { fCity = e.target.value; applyFilters(); });
+  if ($("f-near")) $("f-near").addEventListener("click", () => { fCity = profile.city; buildFilters(); applyFilters(); });
+  $("filters").querySelectorAll(".chip.tag").forEach(b => b.addEventListener("click", () => {
+    const t = b.dataset.tag; fTags.has(t) ? fTags.delete(t) : fTags.add(t); b.classList.toggle("on"); applyFilters();
+  }));
+}
+function applyFilters() {
+  const q = $("search").value.trim().toLowerCase();
+  let list = allListings;
+  if (q) list = list.filter(l => { const b = l.books || {}; return (b.title || "").toLowerCase().includes(q) || (b.author || "").toLowerCase().includes(q); });
+  if (fCity) list = list.filter(l => (l.profiles && l.profiles.city) === fCity);
+  if (fTags.size) list = list.filter(l => { const t = (l.books && l.books.tags) || []; return [...fTags].every(x => t.includes(x)); });
+  renderCatalog(list);
 }
 // Normalize an Israeli number for wa.me: 050-1234567 → 972501234567
 function waNumber(raw) {
@@ -136,16 +165,26 @@ function waNumber(raw) {
   if (d.startsWith("0")) return "972" + d.slice(1);
   return d;
 }
-// Auto book cover from Open Library (best-effort; many Hebrew titles won't match)
+// Auto book cover: Google Books first (good Hebrew coverage), Open Library fallback.
 const coverCache = {};
-async function fetchCover(title) {
-  if (title in coverCache) return coverCache[title];
+async function fetchCover(title, author) {
+  const key = title + "|" + (author || "");
+  if (key in coverCache) return coverCache[key];
+  try {
+    const q = encodeURIComponent(`intitle:${title}` + (author ? ` inauthor:${author}` : ""));
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&country=IL`);
+    const d = await r.json();
+    const img = d.items && d.items[0] && d.items[0].volumeInfo && d.items[0].volumeInfo.imageLinks;
+    const u = img && (img.thumbnail || img.smallThumbnail);
+    if (u) return coverCache[key] = u.replace("http://", "https://");
+  } catch (e) {}
   try {
     const r = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&limit=1&fields=cover_i`);
     const d = await r.json();
     const id = d.docs && d.docs[0] && d.docs[0].cover_i;
-    return coverCache[title] = id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null;
-  } catch (e) { return coverCache[title] = null; }
+    if (id) return coverCache[key] = `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
+  } catch (e) {}
+  return coverCache[key] = null;
 }
 function card(l) {
   const b = l.books || {}, o = l.profiles || {};
@@ -153,6 +192,7 @@ function card(l) {
   const name = o.name || "המשתף";
   const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
   const meta = [b.author, b.year, b.publisher].filter(Boolean).map(esc).join(" · ");
+  const tags = (b.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join("");
   const el = document.createElement("article");
   el.className = "card";
   el.innerHTML = `
@@ -160,22 +200,16 @@ function card(l) {
     <div class="body">
       <div class="title">${esc(b.title)}</div>
       ${meta ? `<div class="author">${meta}</div>` : ""}
+      ${o.city ? `<div class="loc">📍 ${esc(o.city)}</div>` : ""}
+      ${tags ? `<div class="tags">${tags}</div>` : ""}
       <div class="spacer"></div>
       ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 צור קשר עם ${esc(name)}</a>`
            : `<span class="borrow disabled">אין מספר ליצירת קשר</span>`}
     </div>`;
-  if (!b.photo_url) fetchCover(b.title).then(url => {
+  if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
     if (url) el.querySelector("[data-cover]").innerHTML = `<img src="${url}" alt="" loading="lazy">`;
   });
   return el;
-}
-function filterCatalog() {
-  const q = $("search").value.trim().toLowerCase();
-  if (!q) return renderCatalog(allListings);
-  renderCatalog(allListings.filter(l => {
-    const b = l.books || {};
-    return (b.title || "").toLowerCase().includes(q) || (b.author || "").toLowerCase().includes(q);
-  }));
 }
 
 // ── add book ─────────────────────────────────────────────────────────────────
@@ -226,10 +260,12 @@ async function addNewBook(e) {
     if (up.error) { $("add-msg").textContent = "שגיאת העלאה: " + up.error.message; return; }
     photo_url = sb.storage.from("book-photos").getPublicUrl(path).data.publicUrl;
   }
+  const tags = $("b-tags").value.split(",").map(s => s.trim()).filter(Boolean);
   const ins = await sb.from("books").insert({
     title, author: $("b-author").value.trim() || null,
     year: $("b-year").value ? parseInt($("b-year").value, 10) : null,
     publisher: $("b-publisher").value.trim() || null,
+    tags: tags.length ? tags : null,
     photo_url, created_by: session.user.id,
   }).select("id").single();
   if (ins.error) { $("add-msg").textContent = "שגיאה: " + ins.error.message; return; }
