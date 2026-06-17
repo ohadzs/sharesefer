@@ -6,7 +6,7 @@ window.BOOKSHARE_CONFIG = {
   contactWhatsapp: "0544960035",   // site contact (footer "צור קשר"); "" = hide
   GOOGLE_BOOKS_KEY: "",   // optional free key → auto book covers (incl. Hebrew). Empty = covers from uploads / Open Library only
   donate: {
-    url: "",              // Bit payment-request link — set this to show the donate button
+    url: "https://links.payboxapp.com/pC4JKcnb33b",   // PayBox group link — set this to show the donate button
     label: "🐛 האכילו את תולעת הספרים",
   },
 };
