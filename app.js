@@ -128,9 +128,17 @@ function renderCatalog(list) {
   $("count").textContent = list.length ? `${list.length} ספרים זמינים` : "";
   $("grid").replaceChildren(...list.map(card));
 }
+// Normalize an Israeli number for wa.me: 050-1234567 → 972501234567
+function waNumber(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("972")) return d;
+  if (d.startsWith("0")) return "972" + d.slice(1);
+  return d;
+}
 function card(l) {
   const b = l.books || {}, o = l.profiles || {};
-  const wa = (o.whatsapp || "").replace(/\D/g, "");
+  const wa = waNumber(o.whatsapp);
   const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
   const el = document.createElement("article");
   el.className = "card";
