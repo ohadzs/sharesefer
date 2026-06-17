@@ -48,8 +48,10 @@ async function boot() {
   const bookParam = new URLSearchParams(location.search).get("book");
   if (bookParam) openBook(bookParam); else openCatalog();
 
-  // React to login/logout (e.g. returning from the magic-link email).
-  sb.auth.onAuthStateChange(async (_e, s) => {
+  // React only to real login/logout — NOT to INITIAL_SESSION/TOKEN_REFRESHED,
+  // which fire on every load and would clobber a ?book deep link.
+  sb.auth.onAuthStateChange(async (event, s) => {
+    if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
     session = s;
     profile = session ? await loadProfile() : null;
     updateNav();
@@ -60,11 +62,15 @@ async function boot() {
 
 function setupDonate() {
   const d = CFG.donate;
-  if (!d || !d.url) return;            // hidden until a URL is set in config.js
-  const el = $("donate");
-  el.href = d.url;
-  el.textContent = d.label || "☕ תרמו";
-  el.hidden = false;
+  if (d && d.url) {
+    const el = $("donate");
+    el.href = d.url; el.textContent = d.label || "☕ תרמו"; el.hidden = false;
+  }
+  if (CFG.contactWhatsapp) {
+    const c = $("site-contact");
+    c.href = `https://wa.me/${waNumber(CFG.contactWhatsapp)}`;
+    c.hidden = false;
+  }
 }
 
 function updateNav() {
@@ -271,7 +277,7 @@ async function openBook(id) {
     .select("id, profiles(name, whatsapp, city), books(id, title, author, year, publisher, language, photo_url, tags)")
     .eq("book_id", id).eq("available", true);
   if (error || !data || !data.length) {
-    $("view-book").innerHTML = `<button class="chip" onclick="openCatalog()">← לספרייה</button><p class="empty">הספר לא נמצא.</p>`;
+    $("view-book").innerHTML = `<button class="chip back" onclick="openCatalog()">← לספרייה</button><p class="empty">אין כרגע מי שמשתף את הספר הזה.</p>`;
     return;
   }
   const b = data[0].books;
