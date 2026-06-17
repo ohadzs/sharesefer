@@ -31,6 +31,12 @@ body {
 .link:hover { background: var(--bg); }
 .link.active { background: var(--accent); color: #fff; }
 .link.ghost { color: var(--muted); font-weight: 500; }
+.donate {
+  text-decoration: none; background: #fff0d6; color: #9a6b00;
+  border: 1px solid #f0dcae; font-weight: 700; padding: 7px 13px;
+  border-radius: 9px; white-space: nowrap;
+}
+.donate:hover { filter: brightness(1.03); }
 
 .view { max-width: 1040px; margin: 0 auto; padding: 22px 20px 40px; }
 .view > h2 { margin: 4px 0 16px; }

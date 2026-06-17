@@ -19,6 +19,7 @@ async function boot() {
   if (!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) { show("setup"); return; }
   sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   wire();
+  setupDonate();
 
   // Browsing is public — no login needed. Load the catalog for everyone.
   const { data } = await sb.auth.getSession();
@@ -35,6 +36,15 @@ async function boot() {
     if (session && (!profile || !profile.name || !profile.whatsapp)) openProfile();
     else openCatalog();
   });
+}
+
+function setupDonate() {
+  const d = CFG.donate;
+  if (!d || !d.url) return;            // hidden until a URL is set in config.js
+  const el = $("donate");
+  el.href = d.url;
+  el.textContent = d.label || "☕ תרמו";
+  el.hidden = false;
 }
 
 function updateNav() {
