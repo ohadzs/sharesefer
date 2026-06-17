@@ -170,9 +170,9 @@ const coverCache = {};
 async function fetchCover(title, author) {
   const key = title + "|" + (author || "");
   if (key in coverCache) return coverCache[key];
-  try {
+  if (CFG.GOOGLE_BOOKS_KEY) try {   // Google Books (good Hebrew) — needs a free API key
     const q = encodeURIComponent(`intitle:${title}` + (author ? ` inauthor:${author}` : ""));
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&country=IL`);
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&country=IL&key=${CFG.GOOGLE_BOOKS_KEY}`);
     const d = await r.json();
     const img = d.items && d.items[0] && d.items[0].volumeInfo && d.items[0].volumeInfo.imageLinks;
     const u = img && (img.thumbnail || img.smallThumbnail);
