@@ -1,27 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1f2937"/>
-      <stop offset="1" stop-color="#111827"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff8ec"/>
+      <stop offset="1" stop-color="#fbe7c6"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b2a1a"/>
+      <stop offset="1" stop-color="#1f2937"/>
     </linearGradient>
   </defs>
+
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect x="0" y="0" width="1200" height="12" fill="#f59e0b"/>
+  <rect x="0" y="0" width="1200" height="14" fill="#e07a3f"/>
 
-  <!-- book mark -->
-  <g transform="translate(600,150)">
-    <text x="0" y="0" font-family="Apple Color Emoji, Heebo, sans-serif" font-size="120" text-anchor="middle" dominant-baseline="central">📚</text>
+  <!-- text block, all centered to avoid RTL edge issues -->
+  <text x="600" y="150" font-family="Heebo, Arial, sans-serif" font-size="100" font-weight="800" fill="url(#ink)" text-anchor="middle">ShareSefer</text>
+  <text x="600" y="226" font-family="Heebo, Arial, sans-serif" font-size="50" font-weight="700" fill="#c2410c" text-anchor="middle" direction="rtl">משאילים ספרים. בחינם.</text>
+  <text x="600" y="284" font-family="Heebo, Arial, sans-serif" font-size="32" font-weight="500" fill="#6b5840" text-anchor="middle" direction="rtl">ספרייה קהילתית · שכן משאיל לשכן · בלי תשלום</text>
+
+  <!-- bookshelf across the bottom -->
+  <g>
+    <!-- shelf plank + shadow -->
+    <rect x="60" y="560" width="1080" height="22" rx="5" fill="#7c5230" opacity="0.25"/>
+    <rect x="60" y="556" width="1080" height="22" rx="5" fill="#a9784a"/>
+    <!-- spines, baseline y=556 -->
+    <rect x="120" y="426" width="60" height="130" rx="5" fill="#d64545"/>
+    <rect x="188" y="386" width="54" height="170" rx="5" fill="#e8a33d"/>
+    <rect x="250" y="446" width="62" height="110" rx="5" fill="#2f7d6e"/>
+    <rect x="320" y="376" width="52" height="180" rx="5" fill="#3b6fb0"/>
+    <rect x="380" y="436" width="66" height="120" rx="5" fill="#8e4ca8"/>
+    <rect x="454" y="396" width="56" height="160" rx="5" fill="#c2410c"/>
+    <rect x="518" y="456" width="60" height="100" rx="5" fill="#4b9e7d"/>
+    <g transform="rotate(9 614 556)">
+      <rect x="586" y="406" width="54" height="150" rx="5" fill="#2563a8"/>
+    </g>
+    <rect x="668" y="386" width="58" height="170" rx="5" fill="#d97706"/>
+    <rect x="734" y="446" width="62" height="110" rx="5" fill="#b03a5b"/>
+    <rect x="804" y="406" width="54" height="150" rx="5" fill="#356859"/>
+    <rect x="866" y="456" width="64" height="100" rx="5" fill="#caa23a"/>
+    <rect x="938" y="376" width="52" height="180" rx="5" fill="#7b3fa0"/>
+    <rect x="998" y="436" width="60" height="120" rx="5" fill="#cf4646"/>
+    <rect x="1066" y="416" width="54" height="140" rx="5" fill="#2f7d6e"/>
+    <!-- subtle title bands -->
+    <g fill="#ffffff" opacity="0.55">
+      <rect x="130" y="466" width="42" height="7" rx="3"/>
+      <rect x="328" y="416" width="36" height="7" rx="3"/>
+      <rect x="462" y="436" width="40" height="7" rx="3"/>
+      <rect x="676" y="426" width="42" height="7" rx="3"/>
+      <rect x="946" y="416" width="36" height="7" rx="3"/>
+    </g>
   </g>
-
-  <!-- brand -->
-  <text x="600" y="330" font-family="Heebo, Arial, sans-serif" font-size="92" font-weight="800"
-        fill="#ffffff" text-anchor="middle">ShareSefer</text>
-
-  <!-- Hebrew tagline -->
-  <text x="600" y="420" font-family="Heebo, Arial, sans-serif" font-size="46" font-weight="500"
-        fill="#e5e7eb" text-anchor="middle" direction="rtl">ספרייה פתוחה להשאלת ספרים — בחינם</text>
-
-  <!-- sub -->
-  <text x="600" y="495" font-family="Heebo, Arial, sans-serif" font-size="34" font-weight="400"
-        fill="#9ca3af" text-anchor="middle" direction="rtl">שכן משאיל לשכן · ללא תשלום · ללא הרשמה לעיון</text>
 </svg>
