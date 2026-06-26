@@ -86,15 +86,13 @@ function requireLogin() {
 
 // ── auth ────────────────────────────────────────────────────────────────────
 function wire() {
-  $("auth-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = $("auth-email").value.trim();
-    $("auth-msg").textContent = "שולח…";
-    const { error } = await sb.auth.signInWithOtp({
-      email, options: { emailRedirectTo: location.href.split("#")[0] },
+  $("google-signin").addEventListener("click", async () => {
+    $("auth-msg").textContent = "מעביר ל‑Google…";
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: location.href.split("#")[0].split("?")[0] },
     });
-    $("auth-msg").textContent = error ? "שגיאה: " + error.message
-      : "נשלח קישור כניסה לאימייל. בדקו את התיבה.";
+    if (error) $("auth-msg").textContent = "שגיאה: " + error.message;
   });
   $("signout").addEventListener("click", () => sb.auth.signOut());
   $("signin").addEventListener("click", requireLogin);
