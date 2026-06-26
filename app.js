@@ -38,6 +38,7 @@ async function boot() {
   sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
   wire();
   setupDonate();
+  setupScan();
   populateCities();
 
   // Browsing is public — no login needed. Load the catalog for everyone.
@@ -396,6 +397,7 @@ function openAdd() {
   $("add-submit").textContent = "הוספה לספרייה שלי";
   $("add-existing").hidden = false;
   $("add-search").value = ""; $("add-matches").innerHTML = "";
+  prefillCover = null;
   $("add-form").reset(); $("file-label").textContent = "📷 תמונת הספר";
   $("b-lang").value = "עברית"; renderGenres([]);
   $("add-msg").textContent = "";
@@ -416,24 +418,131 @@ function openEditBook(b) {
   $("file-label").textContent = "📷 החלפת תמונה";
   $("add-msg").textContent = "";
 }
+// Live lookup on Google Books (good Hebrew coverage) → one-tap fill of the whole form.
+async function fetchGoogleBooks(q, isbn) {
+  if (!CFG.GOOGLE_BOOKS_KEY) return [];
+  const term = isbn ? `isbn:${encodeURIComponent(isbn)}` : encodeURIComponent(q);
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${term}&maxResults=6&country=IL&key=${CFG.GOOGLE_BOOKS_KEY}`);
+    const d = await r.json();
+    return (d.items || []).map(it => {
+      const v = it.volumeInfo || {}, img = v.imageLinks || {};
+      return {
+        title: v.title || "", author: (v.authors || []).join(", "),
+        year: v.publishedDate ? parseInt(v.publishedDate.slice(0, 4), 10) || "" : "",
+        publisher: v.publisher || "",
+        language: v.language === "he" ? "עברית" : v.language === "en" ? "אנגלית" : "",
+        cover: (img.thumbnail || img.smallThumbnail || "").replace("http://", "https://"),
+      };
+    }).filter(b => b.title);
+  } catch (e) { return []; }
+}
+// Open Library: keyless + CORS-friendly, so it works with no API-key config.
+async function fetchOpenLibrary(q, isbn) {
+  const url = isbn
+    ? `https://openlibrary.org/search.json?isbn=${encodeURIComponent(isbn)}&limit=4&fields=title,author_name,first_publish_year,cover_i,language`
+    : `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=6&fields=title,author_name,first_publish_year,cover_i,language`;
+  try {
+    const r = await fetch(url); const d = await r.json();
+    return (d.docs || []).map(v => ({
+      title: v.title || "", author: (v.author_name || []).join(", "),
+      year: v.first_publish_year || "", publisher: "",
+      language: (v.language || []).includes("heb") ? "עברית" : (v.language || []).includes("eng") ? "אנגלית" : "",
+      cover: v.cover_i ? `https://covers.openlibrary.org/b/id/${v.cover_i}-M.jpg` : "",
+    })).filter(b => b.title);
+  } catch (e) { return []; }
+}
+// Both online sources, merged + de-duped by title|author. Google has better Hebrew
+// metadata but its key is referer-restricted; Open Library always works.
+async function fetchOnlineBooks(q, isbn) {
+  const [g, o] = await Promise.all([fetchGoogleBooks(q, isbn), fetchOpenLibrary(q, isbn)]);
+  const seen = new Set(), out = [];
+  [...g, ...o].forEach(b => {
+    const k = (b.title + "|" + b.author).toLowerCase().trim();
+    if (seen.has(k)) return; seen.add(k); out.push(b);
+  });
+  return out.slice(0, 8);
+}
+let prefillCover = null;   // cover URL chosen from an online result (used if no upload)
+function prefillFromVolume(v) {
+  $("add-existing").hidden = true;            // jump to the (now prefilled) form
+  $("b-title").value = v.title || "";
+  $("b-author").value = v.author || "";
+  $("b-year").value = v.year || "";
+  $("b-publisher").value = v.publisher || "";
+  $("b-lang").value = v.language || "עברית";
+  prefillCover = v.cover || null;
+  $("file-label").textContent = v.cover ? "📷 כריכה נטענה — אפשר להחליף" : "📷 תמונת הספר";
+  $("add-msg").textContent = "מילאנו את הפרטים — בדקו, ולחצו הוספה ✓";
+  window.scrollTo(0, 0);
+}
+// ── barcode (ISBN) scan → look up on Google Books → prefill ──────────────────
+let scanControls = null;
+function setupScan() {
+  const btn = $("scan-btn");
+  if (!btn) return;
+  if (!window.ZXingBrowser || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { btn.hidden = true; return; }
+  btn.hidden = false;
+  btn.addEventListener("click", startScan);
+  $("scan-close").addEventListener("click", stopScan);
+}
+async function startScan() {
+  $("scan-overlay").hidden = false;
+  try {
+    const reader = new ZXingBrowser.BrowserMultiFormatReader();
+    scanControls = await reader.decodeFromVideoDevice(undefined, $("scan-video"), (result, err, controls) => {
+      if (!result) return;
+      const isbn = result.getText().replace(/[^0-9Xx]/g, "");
+      try { controls.stop(); } catch (e) {}
+      stopScan();
+      $("add-search").value = isbn;
+      runAddSearch(isbn, isbn);   // search Google by ISBN
+    });
+  } catch (e) { stopScan(); $("add-msg").textContent = "לא ניתן לפתוח את המצלמה."; }
+}
+function stopScan() {
+  $("scan-overlay").hidden = true;
+  if (scanControls) { try { scanControls.stop(); } catch (e) {} scanControls = null; }
+}
 let searchTimer;
 function searchExisting() {
   clearTimeout(searchTimer);
   const q = $("add-search").value.trim();
   if (q.length < 2) { $("add-matches").innerHTML = ""; return; }
-  searchTimer = setTimeout(async () => {
-    const { data } = await sb.from("books").select("id, title, author, year")
-      .ilike("title", `%${q}%`).limit(8);
-    $("add-matches").innerHTML = "";
-    (data || []).forEach(b => {
+  searchTimer = setTimeout(() => runAddSearch(q), 300);
+}
+async function runAddSearch(q, isbn) {
+  $("add-matches").innerHTML = `<p class="hint">מחפש…</p>`;
+  const [localRes, online] = await Promise.all([
+    isbn ? Promise.resolve({ data: [] }) : sb.from("books").select("id, title, author, year").ilike("title", `%${q}%`).limit(6),
+    fetchOnlineBooks(q, isbn),
+  ]);
+  const local = localRes.data || [];
+  $("add-matches").innerHTML = "";
+  if (local.length) {
+    $("add-matches").insertAdjacentHTML("beforeend", `<div class="match-head">כבר בספרייה — סמנו שזה שלכם</div>`);
+    local.forEach(b => {
       const row = document.createElement("div");
       row.className = "match";
-      row.innerHTML = `<span>${esc(b.title)} ${b.author ? `<small>· ${esc(b.author)}</small>` : ""}</span>
-                       <button type="button">זה שלי</button>`;
+      row.innerHTML = `<span>${esc(b.title)}${b.author ? ` <small>· ${esc(b.author)}</small>` : ""}</span><button type="button">זה שלי</button>`;
       row.querySelector("button").addEventListener("click", () => addListing(b.id));
       $("add-matches").appendChild(row);
     });
-  }, 250);
+  }
+  if (online.length) {
+    $("add-matches").insertAdjacentHTML("beforeend", `<div class="match-head">תוצאות מהאינטרנט — בחרו למילוי אוטומטי</div>`);
+    online.forEach(v => {
+      const row = document.createElement("div");
+      row.className = "match gmatch";
+      row.innerHTML = `<span class="gm-cover">${v.cover ? `<img src="${esc(v.cover)}" alt="">` : "📚"}</span>
+        <span class="gm-info">${esc(v.title)}${v.author ? ` <small>· ${esc(v.author)}</small>` : ""}${v.year ? ` <small>· ${v.year}</small>` : ""}</span>
+        <button type="button">בחר</button>`;
+      row.querySelector("button").addEventListener("click", () => prefillFromVolume(v));
+      $("add-matches").appendChild(row);
+    });
+  }
+  if (!local.length && !online.length)
+    $("add-matches").innerHTML = `<p class="hint">לא נמצא — מלאו ידנית למטה.</p>`;
 }
 async function addListing(bookId) {
   $("add-msg").textContent = "מוסיף…";
@@ -465,6 +574,7 @@ async function addNewBook(e) {
     if (up.error) { $("add-msg").textContent = "שגיאת העלאה: " + up.error.message; return; }
     photo_url = sb.storage.from("book-photos").getPublicUrl(path).data.publicUrl;
   }
+  if (!photo_url && prefillCover) photo_url = prefillCover;   // cover picked from Google
   const tags = selectedGenres();
   const fields = {
     title, author: $("b-author").value.trim() || null,

@@ -129,9 +129,10 @@
   <section id="view-add" class="view" hidden>
     <h2 id="add-title">הוספת ספר</h2>
     <div id="add-existing">
-      <input type="search" id="add-search" placeholder="קודם חפשו אם הספר כבר קיים…" autocomplete="off">
+      <input type="search" id="add-search" placeholder="הקלידו שם ספר — נמלא את הפרטים והכריכה אוטומטית…" autocomplete="off">
+      <button type="button" class="btn-scan" id="scan-btn" hidden>📷 סרקו ברקוד (ISBN)</button>
       <div id="add-matches" class="matches"></div>
-      <div class="divider">לא נמצא? הוסיפו חדש</div>
+      <div class="divider">או מלאו ידנית</div>
     </div>
     <form id="add-form" class="stack">
       <input type="text" id="b-title"  placeholder="שם הספר *" required>
@@ -188,9 +189,17 @@
     </form>
   </section>
 
+  <!-- barcode scan camera overlay -->
+  <div id="scan-overlay" class="scan-overlay" hidden>
+    <video id="scan-video" playsinline muted></video>
+    <p class="scan-hint">כוונו את המצלמה אל הברקוד שעל גב הספר</p>
+    <button type="button" id="scan-close" class="chip">✕ סגירה</button>
+  </div>
+
   <footer><p>נבנה לשיתוף, לא לרווח 📚 · <a id="site-contact" target="_blank" rel="noopener" hidden>צור קשר</a></p></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
