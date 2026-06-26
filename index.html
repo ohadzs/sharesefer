@@ -61,7 +61,8 @@
     <nav id="nav" class="nav">
       <button class="link" data-view="catalog">הספרייה</button>
       <button class="link" data-view="add">+ שיתוף ספר</button>
-      <button class="link auth-only" data-view="mybooks" hidden>הספרים שלי</button>
+      <button class="link auth-only" data-view="shelf" hidden>המדף שלי</button>
+      <button class="link auth-only" data-view="mybooks" hidden>השאלות שלי</button>
       <button class="link auth-only" data-view="profile" id="nav-profile" hidden>הפרופיל שלי</button>
       <button class="link ghost auth-only" id="signout" hidden>יציאה</button>
       <button class="link guest-only" id="signin">התחברות</button>
@@ -157,9 +158,18 @@
     </form>
   </section>
 
-  <!-- my books -->
+  <!-- my shelf (all my books by status) -->
+  <section id="view-shelf" class="view" hidden>
+    <h2>המדף שלי</h2>
+    <p class="hint" id="shelf-hint">כל הספרים שסימנתי — לפי סטטוס. לחצו על ספר כדי לעדכן.</p>
+    <div class="filters" id="shelf-filters"></div>
+    <main id="shelf-grid" class="grid" aria-live="polite"></main>
+    <p class="empty" id="shelf-empty" hidden>עוד לא סימנתם ספרים. היכנסו לעמוד של ספר וסמנו אותו במדף שלכם.</p>
+  </section>
+
+  <!-- my books (lending management) -->
   <section id="view-mybooks" class="view" hidden>
-    <h2>הספרים שלי</h2>
+    <h2>השאלות שלי</h2>
     <p class="hint" id="mybooks-msg"></p>
     <div id="mybooks-list" class="mybooks"></div>
   </section>

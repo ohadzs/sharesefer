@@ -100,8 +100,9 @@ function wire() {
     b.addEventListener("click", () => {
       const v = b.dataset.view;
       if (v === "catalog") return openCatalog();      // public
-      if (!session) return requireLogin();            // add / profile / mybooks need login
+      if (!session) return requireLogin();            // add / profile / shelf / mybooks need login
       if (v === "add") openAdd();
+      else if (v === "shelf") openShelf();
       else if (v === "mybooks") openMyBooks();
       else openProfile();
     }));
@@ -440,7 +441,15 @@ async function addListing(bookId) {
   $("add-msg").textContent = error
     ? (error.code === "23505" ? "כבר הוספת את הספר הזה." : "שגיאה: " + error.message)
     : "נוסף לספרייה שלך ✓";
-  if (!error) setTimeout(openCatalog, 700);
+  if (!error) { markOwned(bookId); setTimeout(openCatalog, 700); }
+}
+// Listing a book for lending implies you own it → reflect that on the shelf.
+async function markOwned(bookId) {
+  try {
+    const { data } = await sb.from("library_entries").select("statuses").eq("user_id", session.user.id).eq("book_id", bookId).maybeSingle();
+    const statuses = new Set(data?.statuses || []); statuses.add("own");
+    await sb.from("library_entries").upsert({ user_id: session.user.id, book_id: bookId, statuses: [...statuses], updated_at: new Date().toISOString() });
+  } catch (e) {}
 }
 async function addNewBook(e) {
   e.preventDefault();
@@ -508,6 +517,60 @@ async function removeListing(listingId, title) {
   const { error } = await sb.from("listings").delete().eq("id", listingId);
   if (error) { $("mybooks-msg").textContent = "שגיאה: " + error.message; return; }
   openMyBooks();
+}
+
+// ── my shelf: every book I marked, filterable by status (the IMDB-for-me list) ──
+let shelfEntries = [];      // [{ book, statuses:[], rating }]
+let shelfFilter = "";       // "" = all, else a status key
+async function openShelf() {
+  show("shelf");
+  $("shelf-grid").innerHTML = `<p class="hint">טוען…</p>`;
+  const { data, error } = await sb.from("library_entries")
+    .select("statuses, rating, books(id, title, author, year, publisher, language, photo_url, tags)")
+    .eq("user_id", session.user.id);
+  if (error) { $("shelf-grid").innerHTML = `<p class='empty'>שגיאה: ${esc(error.message)}</p>`; return; }
+  shelfEntries = (data || []).filter(e => e.books).map(e => ({ book: e.books, statuses: e.statuses || [], rating: e.rating }));
+  buildShelfFilters();
+  renderShelf();
+}
+function buildShelfFilters() {
+  const counts = {};
+  shelfEntries.forEach(e => e.statuses.forEach(s => { counts[s] = (counts[s] || 0) + 1; }));
+  let html = `<button class="chip ${shelfFilter === "" ? "on" : ""}" data-f="">הכל (${shelfEntries.length})</button>`;
+  html += SHELF.map(([k, label]) => counts[k]
+    ? `<button class="chip ${shelfFilter === k ? "on" : ""}" data-f="${k}">${esc(label)} (${counts[k]})</button>` : "").join("");
+  $("shelf-filters").innerHTML = html;
+  $("shelf-filters").querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+    shelfFilter = b.dataset.f; buildShelfFilters(); renderShelf();
+  }));
+}
+function renderShelf() {
+  const list = shelfFilter ? shelfEntries.filter(e => e.statuses.includes(shelfFilter)) : shelfEntries;
+  $("shelf-empty").hidden = list.length > 0;
+  $("shelf-grid").replaceChildren(...list.map(shelfCard));
+}
+function shelfCard(entry) {
+  const b = entry.book;
+  const meta = [b.author, b.year, (b.language && b.language !== "עברית") ? b.language : null].filter(Boolean).map(esc).join(" · ");
+  const badges = entry.statuses.map(s => `<span class="tag-chip">${esc(SHELF_LABEL[s] || s)}</span>`).join("");
+  const stars = entry.rating ? `<div class="loc">${"★".repeat(entry.rating)}<span style="color:var(--line)">${"★".repeat(5 - entry.rating)}</span></div>` : "";
+  const el = document.createElement("article");
+  el.className = "card clickable";
+  el.innerHTML = `
+    <div class="cover" data-cover>${b.photo_url ? `<img src="${esc(b.photo_url)}" alt="" loading="lazy">` : `<span class="ph">📚</span>`}</div>
+    <div class="body">
+      <div class="title">${esc(b.title)}</div>
+      ${meta ? `<div class="author">${meta}</div>` : ""}
+      ${stars}
+      <div class="tags">${badges}</div>
+      <div class="spacer"></div>
+      <span class="borrow details">לעדכון ←</span>
+    </div>`;
+  el.addEventListener("click", () => openBook(b.id));
+  if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
+    if (url) { const c = el.querySelector("[data-cover]"); if (c) c.innerHTML = `<img src="${url}" alt="" loading="lazy">`; }
+  });
+  return el;
 }
 
 boot();
