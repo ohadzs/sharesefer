@@ -1,6 +1,6 @@
 # ShareSefer — setup (one-time, ~10 min)
 
-A community book-lending site: users sign in by email, add books they own
+A community book-lending site: users sign in with Google (one click), add books they own
 (picking from the shared catalog or creating a new one with an optional photo),
 and others tap **בקשה בוואטסאפ** to borrow. Static frontend + Supabase backend. Free.
 
@@ -14,16 +14,26 @@ and others tap **בקשה בוואטסאפ** to borrow. Static frontend + Supaba
 1. Supabase → **SQL Editor → New query**.
 2. Paste all of `supabase/schema.sql`, **Run**. (Creates tables, security rules, the photo bucket.)
 
-## 3. Allow your site URL for magic-link login
-**Authentication → URL Configuration**:
-- **Site URL**: your deployed URL (e.g. `https://ShareSefer.pages.dev`). For local testing add `http://localhost:8000`.
-- **Redirect URLs**: add both the deployed URL and `http://localhost:8000/`.
+## 3. Enable Google sign-in
+**a. Google Cloud** (https://console.cloud.google.com → *APIs & Services → Credentials*):
+- **Create credentials → OAuth client ID → Web application**.
+- Under **Authorised redirect URIs** add your Supabase callback:
+  `https://<project-ref>.supabase.co/auth/v1/callback` (shown in step 3b).
+- Copy the **Client ID** + **Client secret**.
+- In *Google Auth Platform → Audience*, **Publish app** to production so any Google user can sign in
+  (basic `email`/`profile` scopes need no Google verification).
+
+**b. Supabase** (*Authentication → Sign In / Providers → Google*):
+- Toggle **Enable Sign in with Google**, paste the **Client ID** + **Client secret**, **Save**.
+- *Authentication → URL Configuration*: **Site URL** = your deployed URL
+  (e.g. `https://sharesefer.pages.dev`); **Redirect URLs**: add the deployed URL and
+  `http://localhost:8000/**`.
 
 ## 4. Test locally
 ```
 cd sharesefer && python3 -m http.server 8000
 ```
-Open http://localhost:8000 → enter your email → click the link in the email →
+Open http://localhost:8000 → **התחברות → Sign in with Google** → pick your account →
 fill name + WhatsApp → you're in.
 
 ## 5. Seed Ohad's 83 Hebrew books (optional, after first sign-in)
