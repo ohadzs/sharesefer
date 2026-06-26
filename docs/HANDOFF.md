@@ -16,15 +16,23 @@ Connection string comes from `$DATABASE_URL` or macOS Keychain item `sharesefer-
   (`node db.mjs -c "select 1;"`). If it fails, ask Ohad to seed it once (instructions in
   `tools/README.md`; he grabs the URI from Supabase → Settings → Database → Connection string).
   Don't seed it yourself — it needs the DB password, which only Ohad has.
+- ⚠️ **Still unseeded as of 2026-06-26.** `sharesefer-db` Keychain item is NOT set — Ohad
+  doesn't know the DB password. For the cleanup we used the `service_role` key via the admin
+  API instead (Keychain `sharesefer-service`). NOTE: that legacy JWT does **NOT** work for the
+  Data API / PostgREST (returns 403 `42501`) — only GoTrue admin. So the next schema work
+  (IMDB status fields) needs a real Postgres path: either Ohad **resets the DB password** →
+  seeds `sharesefer-db`, or grabs the new `sb_secret_…` API key for the Data API.
 
 ## State
 - **DONE:** Google one-click login (live). Account migration **applied & verified** —
   Ohad's 55 books + 54 listings + profile now on his real login
   `e4b9e9a2-c9e2-4839-8cfb-3bb23929b5c3` (`ohad.zs100@gmail.com`); old no-dot account emptied.
   SQL recorded in `supabase/migrations/20260626_01_*.sql`.
-- **PENDING — cleanup:** delete the two dead auth users (old no-dot `75bccbd4…`,
-  `daniel.demo` `a36541b9…`). SQL ready in `supabase/migrations/20260626_02_cleanup-dead-accounts.sql`.
-  It's a DELETE → Ohad runs it himself via the CLI after you verify counts. Offer it; don't auto-run.
+- **DONE — cleanup (2026-06-26):** the two dead auth users (old no-dot `75bccbd4…`,
+  `daniel.demo` `a36541b9…`) deleted. The DB-URI Keychain was never seeded (DB password
+  unknown), so this ran via the GoTrue **admin API** using the `service_role` key
+  (Keychain item `sharesefer-service`, seeded by Ohad) — not the Postgres CLI.
+  Verified after: only the real account `e4b9e9a2` (ohad.zs100@gmail.com) remains.
 - **Confirm UI:** Ohad should refresh sharesefer.pages.dev (signed in w/ Google) → "הספרים שלי"
   shows 55 books. (He can do this; you don't need the browser.)
 

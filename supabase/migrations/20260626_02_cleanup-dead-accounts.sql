@@ -1,5 +1,9 @@
--- NOT YET APPLIED — pending Ohad's go-ahead. This DELETEs data, so Ohad runs it
--- himself:  cd ~/dev/sharesefer/tools && node db.mjs -f ../supabase/migrations/20260626_02_cleanup-dead-accounts.sql
+-- APPLIED 2026-06-26 (Ohad authorized). The DB-URI Keychain was never seeded
+-- (DB password unknown), so this ran via the GoTrue admin API with the service_role
+-- key instead of the SQL below — same effect (auth.users delete + FK cascades).
+-- Verified after: only the real account e4b9e9a2 (ohad.zs100@gmail.com) remains.
+-- Equivalent CLI form, kept for the record / if re-run via Postgres:
+--   cd ~/dev/sharesefer/tools && node db.mjs -f ../supabase/migrations/20260626_02_cleanup-dead-accounts.sql
 --
 -- Removes the two now-dead auth users left over after migration 01:
 --   75bccbd4-4d84-458d-9e72-9d80fa02d728  ohadzs100@gmail.com  (no dot) — emptied by migration 01
