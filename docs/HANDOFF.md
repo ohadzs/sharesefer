@@ -16,12 +16,10 @@ Connection string comes from `$DATABASE_URL` or macOS Keychain item `sharesefer-
   (`node db.mjs -c "select 1;"`). If it fails, ask Ohad to seed it once (instructions in
   `tools/README.md`; he grabs the URI from Supabase → Settings → Database → Connection string).
   Don't seed it yourself — it needs the DB password, which only Ohad has.
-- ⚠️ **Still unseeded as of 2026-06-26.** `sharesefer-db` Keychain item is NOT set — Ohad
-  doesn't know the DB password. For the cleanup we used the `service_role` key via the admin
-  API instead (Keychain `sharesefer-service`). NOTE: that legacy JWT does **NOT** work for the
-  Data API / PostgREST (returns 403 `42501`) — only GoTrue admin. So the next schema work
-  (IMDB status fields) needs a real Postgres path: either Ohad **resets the DB password** →
-  seeds `sharesefer-db`, or grabs the new `sb_secret_…` API key for the Data API.
+- ✅ **Seeded 2026-06-26.** `sharesefer-db` Keychain item now holds the pooler URI (Ohad reset
+  the DB password and seeded it). `node db.mjs -c "select 1;"` works → all DB/schema work runs
+  through the CLI now. (`sharesefer-service` Keychain still holds the service_role key, but that
+  legacy JWT only works for GoTrue admin, not the Data API — use the DB CLI for SQL.)
 
 ## State
 - **DONE:** Google one-click login (live). Account migration **applied & verified** —
@@ -36,12 +34,16 @@ Connection string comes from `$DATABASE_URL` or macOS Keychain item `sharesefer-
 - **Confirm UI:** Ohad should refresh sharesefer.pages.dev (signed in w/ Google) → "הספרים שלי"
   shows 55 books. (He can do this; you don't need the browser.)
 
-## Next real build (run through kb/discussions/principles.md first)
-Turn this into Goodreads/IMDB-for-Hebrew (memory `sharesefer-imdb-vision`): per-book **status**
-(own / read / want-to-buy / want-to-read / interested) + a **social** layer (follow people, see
-shelves), so this DB replaces Ohad's local `library/books.md` (147 books). Current data is sparse
-(year=NULL, ~1 tag, no covers) → enrichment + per-user status fields are the next schema work.
-Folds together with `~/dev/library-mirror` into the sifriya model.
+## Goodreads/IMDB-for-Hebrew — progress (memory `sharesefer-imdb-vision`)
+- ✅ **Schema applied** (`migrations/20260626_03_*`): `library_entries` (per-user per-book
+  statuses own/read/want_to_read/want_to_buy/interested + rating + review) and `follows`
+  (social graph). 54 listings backfilled to 'own'.
+- ✅ **Frontend (deployed):** book page shows "המדף שלי" — status chips + 1–5 rating (on 'read')
+  + per-status counts. Book pages now render for any book, not only lent ones.
+- **NEXT:** (a) a **shelf browse view** — see ALL books by status, not just the lending catalog
+  (catalog still only surfaces available listings); (b) **social** UI — profile pages, follow
+  button, "people who own/want this"; (c) **enrichment** — data is sparse (year=NULL, ~1 tag,
+  no covers); (d) fold in `library/books.md` (147 books) + `~/dev/library-mirror` → sifriya.
 
 ## Standing rules in play
 - Apple Reminders "Handle login" is already completed. If new work maps to a reminder, ask at the

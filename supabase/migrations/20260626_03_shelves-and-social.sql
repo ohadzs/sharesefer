@@ -1,6 +1,5 @@
--- PENDING — not yet applied (needs a Postgres path: seed `sharesefer-db` Keychain
--- after a DB-password reset, or run via the SQL editor). The service_role JWT does
--- NOT work for DDL/Data API on this project (403 42501), so this can't run yet.
+-- APPLIED 2026-06-26 via the DB CLI (Keychain sharesefer-db seeded after a DB-password
+-- reset). Backfill inserted 54 rows (Ohad's listings → 'own'). Re-runnable (idempotent DDL).
 -- Apply with:  cd ~/dev/sharesefer/tools && node db.mjs -f ../supabase/migrations/20260626_03_shelves-and-social.sql
 --
 -- Goodreads/IMDB-for-Hebrew layer (memory sharesefer-imdb-vision):
@@ -64,7 +63,7 @@ insert into library_entries (user_id, book_id, statuses)
   select owner, book_id, array['own']::text[] from listings
 on conflict (user_id, book_id) do update
   set statuses = (
-    select array(select distinct unnest(library_entries.statuses || 'own'))
+    select array(select distinct unnest(library_entries.statuses || 'own'::text))
   ),
       updated_at = now();
 
