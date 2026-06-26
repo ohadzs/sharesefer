@@ -46,8 +46,10 @@ async function boot() {
   session = data.session;
   if (session) profile = await loadProfile();
   updateNav();
-  const bookParam = new URLSearchParams(location.search).get("book");
-  if (bookParam) openBook(bookParam); else openCatalog();
+  const params = new URLSearchParams(location.search);
+  if (params.get("book")) openBook(params.get("book"));
+  else if (params.get("user")) openUser(params.get("user"));
+  else openCatalog();
 
   // React only to real login/logout — NOT to INITIAL_SESSION/TOKEN_REFRESHED,
   // which fire on every load and would clobber a ?book deep link.
@@ -337,17 +339,39 @@ function shelfStatsHTML(counts) {
   const parts = SHELF.map(([k, label]) => counts[k] ? `${counts[k]} ${esc(label)}` : null).filter(Boolean);
   return parts.length ? `<p class="shelf-stats">${parts.join(" · ")}</p>` : "";
 }
+// Who has this book on their shelf, by status — names link to their profile.
+function readersHTML(rows) {
+  rows = rows || [];
+  const byStatus = {};
+  rows.forEach(r => (r.statuses || []).forEach(s => { (byStatus[s] = byStatus[s] || []).push(r.profiles || {}); }));
+  const blocks = SHELF.map(([k, label]) => {
+    const ppl = byStatus[k]; if (!ppl || !ppl.length) return "";
+    const names = ppl.slice(0, 8).map(p => p.id
+      ? `<span class="ulink" data-user="${esc(p.id)}">${esc(p.name || "קורא/ת")}</span>`
+      : esc(p.name || "קורא/ת")).join(" · ");
+    const more = ppl.length > 8 ? ` +${ppl.length - 8}` : "";
+    return `<div class="reader-line"><span class="rl-label">${esc(label)} (${ppl.length}):</span> ${names}${more}</div>`;
+  }).filter(Boolean).join("");
+  return blocks ? `<div class="readers">${blocks}</div>` : "";
+}
+function wireUserLinks(root) {
+  root.querySelectorAll(".ulink[data-user]").forEach(el => {
+    const uid = el.dataset.user; if (!uid) return;
+    el.addEventListener("click", (e) => { e.stopPropagation(); openUser(uid); });
+  });
+}
 
 // ── single book page: details + my shelf + everyone who lends it + contact ───
 async function openBook(id) {
   show("book");
   history.replaceState(null, "", `?book=${id}`);
   $("view-book").innerHTML = `<p class="hint">טוען…</p>`;
-  // The book itself (works even when nobody lends it), its lenders, and shelf data.
-  const [{ data: b, error: bErr }, lendRes, shelf] = await Promise.all([
+  // The book itself (works even when nobody lends it), its lenders, shelf data, readers.
+  const [{ data: b, error: bErr }, lendRes, shelf, readersRes] = await Promise.all([
     sb.from("books").select("id, title, author, year, publisher, language, photo_url, tags").eq("id", id).maybeSingle(),
-    sb.from("listings").select("id, profiles(name, whatsapp, city)").eq("book_id", id).eq("available", true),
+    sb.from("listings").select("id, profiles(id, name, whatsapp, city)").eq("book_id", id).eq("available", true),
     loadShelf(id),
+    sb.from("library_entries").select("statuses, profiles(id, name)").eq("book_id", id),
   ]);
   if (bErr || !b) {
     $("view-book").innerHTML = `<button class="chip back" onclick="openCatalog()">← לספרייה</button><p class="empty">הספר לא נמצא.</p>`;
@@ -360,7 +384,7 @@ async function openBook(id) {
     const o = l.profiles || {}, wa = waNumber(o.whatsapp);
     const msg = encodeURIComponent(`היי ${o.name || ""}, אשמח להשאיל את "${b.title}". תודה!`);
     return `<div class="lender">
-      <span><b>${esc(o.name || "משתף")}</b>${o.city ? ` · 📍 ${esc(o.city)}` : ""}</span>
+      <span><b class="ulink" data-user="${esc(o.id || "")}">${esc(o.name || "משתף")}</b>${o.city ? ` · 📍 ${esc(o.city)}` : ""}</span>
       ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 בקשה בוואטסאפ</a>` : `<span class="borrow disabled">אין יצירת קשר</span>`}
     </div>`;
   }).join("");
@@ -377,15 +401,83 @@ async function openBook(id) {
         <h2>${esc(b.title)}</h2>
         ${meta ? `<p class="author">${meta}</p>` : ""}
         ${tags ? `<div class="tags">${tags}</div>` : ""}
-        ${shelf.ok ? shelfStatsHTML(shelf.counts) : ""}
         ${session && shelf.ok ? shelfControlHTML() : ""}
+        ${readersHTML(readersRes.data)}
         ${lendBlock}
       </div>
     </div>`;
   if (session && shelf.ok) wireShelf(id);
+  wireUserLinks($("view-book"));
   if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
     const c = $("view-book").querySelector("[data-cover]"); if (url && c) c.innerHTML = `<img src="${url}" alt="">`;
   });
+}
+
+// ── social: public profiles + follow ────────────────────────────────────────
+async function loadFollowState(userId) {
+  const me = session ? session.user.id : null;
+  const [followers, following, mine] = await Promise.all([
+    sb.from("follows").select("*", { count: "exact", head: true }).eq("followee", userId),
+    sb.from("follows").select("*", { count: "exact", head: true }).eq("follower", userId),
+    me ? sb.from("follows").select("followee", { head: true, count: "exact" }).eq("follower", me).eq("followee", userId) : Promise.resolve({ count: 0 }),
+  ]);
+  return { followers: followers.count || 0, following: following.count || 0, iFollow: (mine.count || 0) > 0 };
+}
+let userFilter = "";   // status filter on a profile page
+async function openUser(userId) {
+  show("user");
+  userFilter = "";
+  history.replaceState(null, "", `?user=${userId}`);
+  $("view-user").innerHTML = `<p class="hint">טוען…</p>`;
+  const [{ data: prof }, { data: entries }, fs] = await Promise.all([
+    sb.from("profiles").select("name, city").eq("id", userId).maybeSingle(),
+    sb.from("library_entries").select("statuses, rating, books(id, title, author, year, photo_url)").eq("user_id", userId),
+    loadFollowState(userId),
+  ]);
+  if (!prof) { $("view-user").innerHTML = `<button class="chip back" onclick="openCatalog()">← לספרייה</button><p class="empty">משתמש לא נמצא.</p>`; return; }
+  userShelf = (entries || []).filter(e => e.books).map(e => ({ book: e.books, statuses: e.statuses || [], rating: e.rating }));
+  const isSelf = session && session.user.id === userId;
+  const followBtn = (session && !isSelf)
+    ? `<button class="btn-follow ${fs.iFollow ? "on" : ""}" data-follow="${userId}">${fs.iFollow ? "עוקב/ת ✓" : "+ עקבו"}</button>` : "";
+  $("view-user").innerHTML = `
+    <button class="chip back" onclick="openCatalog()">← לספרייה</button>
+    <div class="profile-head">
+      <div class="avatar">${esc((prof.name || "?").trim().charAt(0))}</div>
+      <div>
+        <h2>${esc(prof.name || "קורא/ת")}</h2>
+        ${prof.city ? `<p class="loc">📍 ${esc(prof.city)}</p>` : ""}
+        <p class="follow-stats">${userShelf.length} ספרים · ${fs.followers} עוקבים · ${fs.following} עוקב/ת אחרי</p>
+      </div>
+      ${followBtn}
+    </div>
+    <div class="filters" id="user-filters"></div>
+    <main id="user-grid" class="grid"></main>`;
+  const fb = $("view-user").querySelector("[data-follow]");
+  if (fb) fb.addEventListener("click", () => toggleFollow(userId));
+  buildUserFilters(); renderUserShelf();
+}
+let userShelf = [];
+function buildUserFilters() {
+  const counts = {};
+  userShelf.forEach(e => e.statuses.forEach(s => { counts[s] = (counts[s] || 0) + 1; }));
+  let html = `<button class="chip ${userFilter === "" ? "on" : ""}" data-f="">הכל (${userShelf.length})</button>`;
+  html += SHELF.map(([k, label]) => counts[k]
+    ? `<button class="chip ${userFilter === k ? "on" : ""}" data-f="${k}">${esc(label)} (${counts[k]})</button>` : "").join("");
+  $("user-filters").innerHTML = html;
+  $("user-filters").querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+    userFilter = b.dataset.f; buildUserFilters(); renderUserShelf();
+  }));
+}
+function renderUserShelf() {
+  const list = userFilter ? userShelf.filter(e => e.statuses.includes(userFilter)) : userShelf;
+  $("user-grid").replaceChildren(...list.map(shelfCard));
+}
+async function toggleFollow(userId) {
+  if (!session) return requireLogin();
+  const { count } = await sb.from("follows").select("followee", { head: true, count: "exact" }).eq("follower", session.user.id).eq("followee", userId);
+  if (count > 0) await sb.from("follows").delete().eq("follower", session.user.id).eq("followee", userId);
+  else await sb.from("follows").insert({ follower: session.user.id, followee: userId });
+  openUser(userId);
 }
 
 // ── add / edit book ──────────────────────────────────────────────────────────

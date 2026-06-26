@@ -40,10 +40,22 @@ Connection string comes from `$DATABASE_URL` or macOS Keychain item `sharesefer-
   (social graph). 54 listings backfilled to 'own'.
 - ✅ **Frontend (deployed):** book page shows "המדף שלי" — status chips + 1–5 rating (on 'read')
   + per-status counts. Book pages now render for any book, not only lent ones.
-- **NEXT:** (a) a **shelf browse view** — see ALL books by status, not just the lending catalog
-  (catalog still only surfaces available listings); (b) **social** UI — profile pages, follow
-  button, "people who own/want this"; (c) **enrichment** — data is sparse (year=NULL, ~1 tag,
-  no covers); (d) fold in `library/books.md` (147 books) + `~/dev/library-mirror` → sifriya.
+- ✅ **Shelf browse view** ("המדף שלי") + ✅ **easy/fun add** (live Open Library/Google Books
+  search w/ covers + ISBN barcode scan) + ✅ **imported all 146 from `library/books.md`**
+  (`tools/import-books.mjs`) + ✅ **partial enrichment** (`tools/enrich-books.mjs`, 32 books via
+  Open Library; Hebrew needs Google key unblocked or NLI — see `ideas/hebrew-books-db.md`).
+
+## Roadmap (locked 2026-06-26, in order)
+4. **Social UI** — public profile pages (anyone's shelves), follow/unfollow, "who owns/wants this".
+5. **Library lookup tool** — generalize `~/dev/library-mirror`: search/view **ANY** requested
+   library's catalog through sharesefer (start with Ohad's, then any library on request) so people
+   use our site instead of the clunky library websites. Build a **sharesefer MCP** for it (reuse
+   the existing MCP capability / connector engine).
+6. **Infra/hosting decision** (AFTER 4 & 5) — Cloudflare **Pages is static and can NOT host an
+   MCP/backend**. Plan: buy a domain + move to a deploy that can expose a backend (Cloudflare
+   Workers, or other). Decide the architecture then.
+- Later (NOT now): the **books-catalog DB project** (NLI + Google Books + Open Library dump,
+  ISBN-13-keyed — `ideas/hebrew-books-db.md`), **AI chat**, broader MCP surface.
 
 ## Standing rules in play
 - Apple Reminders "Handle login" is already completed. If new work maps to a reminder, ask at the
