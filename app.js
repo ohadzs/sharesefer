@@ -266,19 +266,92 @@ function card(entry) {
   return el;
 }
 
-// ── single book page: details + everyone who lends it + contact ──────────────
+// ── shelves (Goodreads-for-Hebrew layer): per-book status + rating ───────────
+// Status vocab must match the library_entries.statuses_vocab DB constraint.
+const SHELF = [
+  ["own", "יש לי"], ["read", "קראתי"], ["want_to_read", "רוצה לקרוא"],
+  ["want_to_buy", "רוצה לקנות"], ["interested", "מעניין אותי"],
+];
+const SHELF_LABEL = Object.fromEntries(SHELF);
+let myShelf = { statuses: new Set(), rating: null };   // current book, current user
+
+// Fetch the signed-in user's shelf row + per-status counts for a book.
+// Wrapped so the page still works if the migration (library_entries) isn't applied yet.
+async function loadShelf(bookId) {
+  myShelf = { statuses: new Set(), rating: null };
+  const counts = {};
+  try {
+    const { data: all, error } = await sb.from("library_entries").select("user_id, statuses, rating").eq("book_id", bookId);
+    if (error) return { counts, ok: false };
+    (all || []).forEach(r => {
+      (r.statuses || []).forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+      if (session && r.user_id === session.user.id) {
+        myShelf = { statuses: new Set(r.statuses || []), rating: r.rating ?? null };
+      }
+    });
+    return { counts, ok: true };
+  } catch (e) { return { counts, ok: false }; }
+}
+async function saveShelf(bookId) {
+  const statuses = [...myShelf.statuses];
+  const { error } = await sb.from("library_entries").upsert({
+    user_id: session.user.id, book_id: bookId,
+    statuses, rating: myShelf.rating, updated_at: new Date().toISOString(),
+  });
+  return error;
+}
+function shelfControlHTML() {
+  const chips = SHELF.map(([k, label]) =>
+    `<button type="button" class="chip shelf ${myShelf.statuses.has(k) ? "on" : ""}" data-s="${k}">${esc(label)}</button>`).join("");
+  const read = myShelf.statuses.has("read");
+  const stars = read ? `<div class="rating" data-rating>${[1, 2, 3, 4, 5].map(n =>
+    `<button type="button" class="star ${myShelf.rating >= n ? "on" : ""}" data-n="${n}">★</button>`).join("")}</div>` : "";
+  return `<div class="shelfbox"><div class="shelf-label">המדף שלי</div>
+    <div class="shelf-chips" data-shelf>${chips}</div>${stars}
+    <span class="hint" id="shelf-msg"></span></div>`;
+}
+function wireShelf(bookId) {
+  const box = $("view-book").querySelector("[data-shelf]");
+  if (!box) return;
+  box.querySelectorAll(".shelf").forEach(b => b.addEventListener("click", async () => {
+    const s = b.dataset.s;
+    myShelf.statuses.has(s) ? myShelf.statuses.delete(s) : myShelf.statuses.add(s);
+    if (!myShelf.statuses.has("read")) myShelf.rating = null;   // rating only meaningful once read
+    b.classList.toggle("on");
+    const msg = $("shelf-msg"); msg.textContent = "שומר…";
+    const err = await saveShelf(bookId);
+    msg.textContent = err ? "שגיאה: " + err.message : "נשמר ✓";
+    if (!err) openBook(bookId);   // re-render so the rating stars appear/disappear
+  }));
+  $("view-book").querySelectorAll(".star").forEach(st => st.addEventListener("click", async () => {
+    myShelf.rating = parseInt(st.dataset.n, 10);
+    $("view-book").querySelectorAll(".star").forEach(s => s.classList.toggle("on", parseInt(s.dataset.n, 10) <= myShelf.rating));
+    const msg = $("shelf-msg"); msg.textContent = "שומר…";
+    const err = await saveShelf(bookId);
+    msg.textContent = err ? "שגיאה: " + err.message : "נשמר ✓";
+  }));
+}
+function shelfStatsHTML(counts) {
+  const parts = SHELF.map(([k, label]) => counts[k] ? `${counts[k]} ${esc(label)}` : null).filter(Boolean);
+  return parts.length ? `<p class="shelf-stats">${parts.join(" · ")}</p>` : "";
+}
+
+// ── single book page: details + my shelf + everyone who lends it + contact ───
 async function openBook(id) {
   show("book");
   history.replaceState(null, "", `?book=${id}`);
   $("view-book").innerHTML = `<p class="hint">טוען…</p>`;
-  const { data, error } = await sb.from("listings")
-    .select("id, profiles(name, whatsapp, city), books(id, title, author, year, publisher, language, photo_url, tags)")
-    .eq("book_id", id).eq("available", true);
-  if (error || !data || !data.length) {
-    $("view-book").innerHTML = `<button class="chip back" onclick="openCatalog()">← לספרייה</button><p class="empty">אין כרגע מי שמשתף את הספר הזה.</p>`;
+  // The book itself (works even when nobody lends it), its lenders, and shelf data.
+  const [{ data: b, error: bErr }, lendRes, shelf] = await Promise.all([
+    sb.from("books").select("id, title, author, year, publisher, language, photo_url, tags").eq("id", id).maybeSingle(),
+    sb.from("listings").select("id, profiles(name, whatsapp, city)").eq("book_id", id).eq("available", true),
+    loadShelf(id),
+  ]);
+  if (bErr || !b) {
+    $("view-book").innerHTML = `<button class="chip back" onclick="openCatalog()">← לספרייה</button><p class="empty">הספר לא נמצא.</p>`;
     return;
   }
-  const b = data[0].books;
+  const data = lendRes.data || [];
   const meta = [b.author, b.year, b.publisher, b.language].filter(Boolean).map(esc).join(" · ");
   const tags = (b.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join("");
   const lenders = data.map(l => {
@@ -289,6 +362,11 @@ async function openBook(id) {
       ${wa ? `<a class="borrow" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${msg}">📲 בקשה בוואטסאפ</a>` : `<span class="borrow disabled">אין יצירת קשר</span>`}
     </div>`;
   }).join("");
+  const lendBlock = data.length
+    ? `<h3>אצל ${data.length} ${data.length === 1 ? "אדם" : "אנשים"}</h3>
+       <div class="lenders">${lenders}</div>
+       <p class="hint safety">⚠️ היזהרו במסירת פרטים אישיים. מומלץ להיפגש במקום ציבורי. ShareSefer אינו צד לעסקה.</p>`
+    : `<p class="hint">אף אחד לא משתף את הספר הזה כרגע.</p>`;
   $("view-book").innerHTML = `
     <button class="chip back" onclick="openCatalog()">← לספרייה</button>
     <div class="bookpage">
@@ -297,11 +375,12 @@ async function openBook(id) {
         <h2>${esc(b.title)}</h2>
         ${meta ? `<p class="author">${meta}</p>` : ""}
         ${tags ? `<div class="tags">${tags}</div>` : ""}
-        <h3>אצל ${data.length} ${data.length === 1 ? "אדם" : "אנשים"}</h3>
-        <div class="lenders">${lenders}</div>
-        <p class="hint safety">⚠️ היזהרו במסירת פרטים אישיים. מומלץ להיפגש במקום ציבורי. ShareSefer אינו צד לעסקה.</p>
+        ${shelf.ok ? shelfStatsHTML(shelf.counts) : ""}
+        ${session && shelf.ok ? shelfControlHTML() : ""}
+        ${lendBlock}
       </div>
     </div>`;
+  if (session && shelf.ok) wireShelf(id);
   if (!b.photo_url) fetchCover(b.title, b.author).then(url => {
     const c = $("view-book").querySelector("[data-cover]"); if (url && c) c.innerHTML = `<img src="${url}" alt="">`;
   });
